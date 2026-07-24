@@ -1,0 +1,72 @@
+import { OUTILS } from "./tools";
+import { construirePromptSysteme } from "./prompt";
+import type { ContexteChat } from "./types";
+
+// Petites phrases dites pendant l'exécution d'un outil, pour combler le
+// silence le temps que la base de données réponde (sinon blanc perceptible).
+const PHRASES_ATTENTE: Record<string, string> = {
+  voir_disponibilites: "Un instant, je regarde ça.",
+  chercher_patient: "Je vérifie votre dossier.",
+  creer_rdv: "Je vous confirme ça tout de suite.",
+  deplacer_rdv: "Une seconde, je déplace ça.",
+  annuler_rdv: "Je m'en occupe.",
+  inscrire_liste_attente: "Je note ça.",
+};
+
+/** Convertit nos tools (format Anthropic) au format attendu par Vapi (proche d'OpenAI). */
+function outilsPourVapi() {
+  return OUTILS.map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+    messages: [
+      {
+        type: "request-start" as const,
+        content: PHRASES_ATTENTE[t.name] ?? "Un instant.",
+      },
+    ],
+  }));
+}
+
+export function construireAssistantVapi(input: {
+  ctx: ContexteChat;
+  serverUrl: string;
+  numeroAppelant?: string;
+}) {
+  const { ctx } = input;
+
+  return {
+    name: `${ctx.cabinet.nom} — ${ctx.cabinet.iaPrenom}`,
+    metadata: { cabinetId: ctx.cabinet.id },
+    firstMessage: ctx.cabinet.iaMessageAccueil || `${ctx.cabinet.nom}, bonjour ! Comment puis-je vous aider ?`,
+    model: {
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+      maxTokens: 250,
+      messages: [
+        {
+          role: "system" as const,
+          content: construirePromptSysteme(ctx, { canal: "voix", numeroAppelant: input.numeroAppelant }),
+        },
+      ],
+      tools: outilsPourVapi(),
+    },
+    voice: {
+      provider: "azure",
+      voiceId: "fr-FR-DeniseNeural",
+      speed: 1.3,
+    },
+    transcriber: {
+      provider: "deepgram",
+      model: "nova-2",
+      language: "fr",
+    },
+    server: {
+      url: input.serverUrl,
+    },
+    endCallPhrases: ["au revoir", "bonne journée", "à bientôt"],
+  };
+}

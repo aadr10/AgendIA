@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"console.log\\(require\\('crypto'\\).randomBytes\\(24\\).toString\\('hex'\\)\\)\")",
+      "Bash(curl -s \"http://localhost:3000/api/cron/rappels?secret=45c77f9a45408badde2c86d7492b978edd88e2ad629d1b45\")",
+      "Bash(brew list *)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -sL -o cloudflared.tgz \"https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-arm64.tgz\")",
+      "Bash(tar -tzf cloudflared.tgz)",
+      "Bash(tar -xzf cloudflared.tgz)",
+      "Bash(chmod +x cloudflared)",
+      "Bash(./cloudflared --version)",
+      "Bash(mv /tmp/cloudflared \"/private/tmp/claude-501/-Users-aitaandrea-Documents-secretaire-ia/bcea6774-7876-4b36-9638-9311709e5d42/scratchpad/cloudflared\")",
+      "Bash(chmod +x \"/private/tmp/claude-501/-Users-aitaandrea-Documents-secretaire-ia/bcea6774-7876-4b36-9638-9311709e5d42/scratchpad/cloudflared\")",
+      "Bash(\"/private/tmp/claude-501/-Users-aitaandrea-Documents-secretaire-ia/bcea6774-7876-4b36-9638-9311709e5d42/scratchpad/cloudflared\" tunnel *)",
+      "Bash(disown)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://reach-ground-hosts-soup.trycloudflare.com/cabinet-dupont\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://reach-ground-hosts-soup.trycloudflare.com/ --max-time 10)",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(gh auth *)",
+      "Bash(npx vercel *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
