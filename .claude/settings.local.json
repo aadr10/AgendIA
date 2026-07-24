@@ -33,7 +33,9 @@
       "Bash(curl -s https://secretaire-ia.vercel.app/login)",
       "Bash(curl -s -o /dev/null -w \"secretaire-ia.vercel.app: %{http_code}\\\\n\" https://secretaire-ia.vercel.app/)",
       "Bash(cd \"/Users/aitaandrea/Documents/secretaire-ia\" && npx vercel env pull /tmp/vercel_env_check.txt --environment production --yes 2>&1 | tail -5 && grep SUPER_ADMIN_EMAIL /tmp/vercel_env_check.txt | cat -A | head -3)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "mcp__claude-in-chrome__tabs_create_mcp",
+      "Bash(curl -sv \"https://pwizvminhwtprkhbmfvr.supabase.co/auth/v1/verify?token=4c22a4b12298bff826b68692b01a719c54917202c29bc196d91e17a3&type=recovery&redirect_to=https%3A%2F%2Fsecretaire-ia.vercel.app%2Fauth%2Fcallback%3Fnext%3D%2Fauth%2Fset-password\" -o /dev/null)"
     ]
   }
 }

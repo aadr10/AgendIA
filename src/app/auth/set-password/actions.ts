@@ -17,15 +17,6 @@ export async function definirMotDePasse(motDePasse: string) {
   const { error } = await supabase.auth.updateUser({ password: motDePasse });
   if (error) return { error: error.message };
 
-  console.log(
-    "[set-password] email utilisateur =",
-    JSON.stringify(user.email),
-    "| SUPER_ADMIN_EMAIL =",
-    JSON.stringify(process.env.SUPER_ADMIN_EMAIL),
-    "| correspond =",
-    user.email === process.env.SUPER_ADMIN_EMAIL
-  );
-
   if (user.email === process.env.SUPER_ADMIN_EMAIL) {
     redirect("/admin");
   }
