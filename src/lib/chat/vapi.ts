@@ -13,9 +13,11 @@ const PHRASES_ATTENTE: Record<string, string> = {
   inscrire_liste_attente: "Je note ça.",
 };
 
-/** Convertit nos tools (format Anthropic) au format attendu par Vapi (proche d'OpenAI). */
+/** Convertit nos tools (format Anthropic) au format attendu par Vapi (proche d'OpenAI).
+ * "chercher_patient" est exclu : le numéro de l'appelant est déjà connu automatiquement,
+ * et la consultation du dossier ajoute un aller-retour inutile qui ralentit l'appel. */
 function outilsPourVapi() {
-  return OUTILS.map((t) => ({
+  return OUTILS.filter((t) => t.name !== "chercher_patient").map((t) => ({
     type: "function" as const,
     function: {
       name: t.name,
@@ -57,7 +59,7 @@ export function construireAssistantVapi(input: {
     voice: {
       provider: "azure",
       voiceId: "fr-FR-DeniseNeural",
-      speed: 1.3,
+      speed: 1.15,
     },
     transcriber: {
       provider: "deepgram",
@@ -66,6 +68,7 @@ export function construireAssistantVapi(input: {
     },
     server: {
       url: input.serverUrl,
+      secret: process.env.VAPI_WEBHOOK_SECRET,
     },
     endCallPhrases: ["au revoir", "bonne journée", "à bientôt"],
   };
