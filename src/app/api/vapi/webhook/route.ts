@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         try {
           const args =
             typeof tc.function.arguments === "string" ? JSON.parse(tc.function.arguments) : tc.function.arguments;
-          const resultat = await executerOutil(tc.function.name, args, ctx);
+          const resultat = await executerOutil(tc.function.name, args, ctx, "voix");
           return { toolCallId: tc.id, result: JSON.stringify(resultat) };
         } catch (e) {
           return { toolCallId: tc.id, result: JSON.stringify({ erreur: e instanceof Error ? e.message : "Erreur inattendue." }) };

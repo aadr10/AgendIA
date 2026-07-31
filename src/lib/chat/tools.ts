@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { creneauxDisponiblesJour } from "@/lib/disponibilites";
+import { creneauxDisponiblesPlage, praticiensPourPrestation } from "@/lib/disponibilites";
 import { envoyerConfirmationRdv } from "@/lib/notifications";
 import { toLocalISODate } from "@/lib/dates";
 import type { ContexteChat } from "./types";
@@ -22,10 +22,14 @@ export const OUTILS: Anthropic.Tool[] = [
   },
   {
     name: "chercher_patient",
-    description: "Recherche une fiche patient existante par numéro de téléphone, pour personnaliser l'accueil et voir un éventuel rendez-vous à venir.",
+    description:
+      "Recherche une fiche patient existante par numéro de téléphone, pour personnaliser l'accueil et voir un éventuel rendez-vous à venir. Si plusieurs patients partagent ce numéro (ex: famille), donner aussi nom_patient pour préciser lequel.",
     input_schema: {
       type: "object",
-      properties: { telephone: { type: "string" } },
+      properties: {
+        telephone: { type: "string" },
+        nom_patient: { type: "string", description: "à fournir si plusieurs patients partagent ce numéro de téléphone" },
+      },
       required: ["telephone"],
     },
   },
@@ -43,16 +47,18 @@ export const OUTILS: Anthropic.Tool[] = [
         telephone_patient: { type: "string" },
         email_patient: { type: "string" },
       },
-      required: ["prestation_id", "praticien_id", "jour", "heure", "nom_patient", "telephone_patient", "email_patient"],
+      required: ["prestation_id", "praticien_id", "jour", "heure", "nom_patient", "telephone_patient"],
     },
   },
   {
     name: "deplacer_rdv",
-    description: "Déplace le prochain rendez-vous à venir du patient (identifié par téléphone) vers un nouveau créneau.",
+    description:
+      "Déplace le prochain rendez-vous à venir du patient (identifié par téléphone) vers un nouveau créneau. Si plusieurs patients partagent ce numéro (ex: famille), donner aussi nom_patient pour préciser lequel.",
     input_schema: {
       type: "object",
       properties: {
         telephone_patient: { type: "string" },
+        nom_patient: { type: "string", description: "à fournir si plusieurs patients partagent ce numéro de téléphone" },
         nouveau_jour: { type: "string", description: "YYYY-MM-DD" },
         nouvelle_heure: { type: "string", description: "HH:MM" },
       },
@@ -61,10 +67,14 @@ export const OUTILS: Anthropic.Tool[] = [
   },
   {
     name: "annuler_rdv",
-    description: "Annule le prochain rendez-vous à venir du patient (identifié par téléphone).",
+    description:
+      "Annule le prochain rendez-vous à venir du patient (identifié par téléphone). Si plusieurs patients partagent ce numéro (ex: famille), donner aussi nom_patient pour préciser lequel.",
     input_schema: {
       type: "object",
-      properties: { telephone_patient: { type: "string" } },
+      properties: {
+        telephone_patient: { type: "string" },
+        nom_patient: { type: "string", description: "à fournir si plusieurs patients partagent ce numéro de téléphone" },
+      },
       required: ["telephone_patient"],
     },
   },
@@ -85,6 +95,31 @@ export const OUTILS: Anthropic.Tool[] = [
   },
 ];
 
+// Un même numéro peut être partagé par plusieurs patients (ex: une famille) :
+// on désambiguïse par nom quand plusieurs fiches correspondent au téléphone donné.
+async function trouverPatient(
+  supabase: ReturnType<typeof createAdminClient>,
+  cabinetId: string,
+  telephone: string,
+  nomPatient?: string
+): Promise<{ patient: { id: string; nom: string } | null; ambigu: boolean }> {
+  const { data: correspondances } = await supabase
+    .from("patients")
+    .select("id, nom")
+    .eq("cabinet_id", cabinetId)
+    .eq("telephone", telephone);
+
+  if (!correspondances || correspondances.length === 0) return { patient: null, ambigu: false };
+  if (correspondances.length === 1) return { patient: correspondances[0], ambigu: false };
+
+  if (nomPatient) {
+    const cible = nomPatient.trim().toLowerCase();
+    const trouve = correspondances.find((p) => p.nom.trim().toLowerCase() === cible);
+    if (trouve) return { patient: trouve, ambigu: false };
+  }
+  return { patient: null, ambigu: true };
+}
+
 const JOURS_LABEL = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 
 function labelJour(iso: string) {
@@ -92,7 +127,12 @@ function labelJour(iso: string) {
   return `${JOURS_LABEL[d.getDay()]} ${d.getDate()} ${d.toLocaleDateString("fr-BE", { month: "long" })}`;
 }
 
-export async function executerOutil(nom: string, input: Record<string, unknown>, ctx: ContexteChat): Promise<unknown> {
+export async function executerOutil(
+  nom: string,
+  input: Record<string, unknown>,
+  ctx: ContexteChat,
+  canal: "chat" | "voix" = "chat"
+): Promise<unknown> {
   const supabase = createAdminClient();
   const cabinetId = ctx.cabinet.id;
 
@@ -103,11 +143,10 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
     if (!prestation) return { erreur: "Prestation inconnue." };
 
     const debut = input.a_partir_du ? new Date((input.a_partir_du as string) + "T00:00:00") : new Date();
-    const { data: regles } = await supabase
-      .from("regles")
-      .select("delai_min_reservation_heures")
-      .eq("cabinet_id", cabinetId)
-      .single();
+    const [{ data: regles }, praticienIdsResolus] = await Promise.all([
+      supabase.from("regles").select("delai_min_reservation_heures").eq("cabinet_id", cabinetId).single(),
+      praticiensPourPrestation(supabase, cabinetId, prestationId, praticienId),
+    ]);
 
     // Échantillonne les créneaux d'une journée en couvrant matin ET après-midi
     // (plutôt que de ne garder que les tout premiers de la journée, qui sont
@@ -118,20 +157,28 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
       return Array.from({ length: max }, (_, i) => liste[Math.floor(i * pas)]);
     }
 
-    const resultats: { jour: string; jour_libelle: string; heure: string; praticien_id: string; praticien_nom: string }[] = [];
-    for (let i = 0; i < 21 && resultats.length < 10; i++) {
+    // Toute la plage de 21 jours est récupérée en 3 requêtes base de données
+    // (pas 3 par jour) puis calculée en mémoire — critique pour la latence en
+    // appel téléphonique en direct, où chaque aller-retour réseau supplémentaire
+    // se traduit par du silence pendant que l'IA "réfléchit".
+    const creneauxParJourMap = await creneauxDisponiblesPlage(supabase, {
+      cabinetId,
+      praticienIds: praticienIdsResolus,
+      dureeMinutes: prestation.dureeMinutes,
+      delaiMinHeures: regles?.delai_min_reservation_heures ?? 0,
+      debut,
+      nombreJours: 21,
+    });
+    const jours = Array.from({ length: 21 }, (_, i) => {
       const jour = new Date(debut);
       jour.setDate(jour.getDate() + i);
-      const jourISO = toLocalISODate(jour);
-      const creneaux = await creneauxDisponiblesJour(supabase, {
-        cabinetId,
-        prestationId,
-        praticienId,
-        jour,
-        dureeMinutes: prestation.dureeMinutes,
-        delaiMinHeures: regles?.delai_min_reservation_heures ?? 0,
-      });
-      for (const c of echantillonner(creneaux, 8)) {
+      return { jourISO: toLocalISODate(jour) };
+    });
+
+    const resultats: { jour: string; jour_libelle: string; heure: string; praticien_id: string; praticien_nom: string }[] = [];
+    for (let i = 0; i < jours.length && resultats.length < 10; i++) {
+      const { jourISO } = jours[i];
+      for (const c of echantillonner(creneauxParJourMap.get(jourISO) ?? [], 8)) {
         resultats.push({
           jour: jourISO,
           jour_libelle: labelJour(jourISO),
@@ -147,12 +194,9 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
 
   if (nom === "chercher_patient") {
     const telephone = (input.telephone as string).trim();
-    const { data: patient } = await supabase
-      .from("patients")
-      .select("id, nom")
-      .eq("cabinet_id", cabinetId)
-      .eq("telephone", telephone)
-      .maybeSingle();
+    const nomPatient = (input.nom_patient as string | undefined)?.trim();
+    const { patient, ambigu } = await trouverPatient(supabase, cabinetId, telephone, nomPatient);
+    if (ambigu) return { trouve: false, ambigu: true };
     if (!patient) return { trouve: false };
 
     const { data: rdv } = await supabase
@@ -186,12 +230,12 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
     const heure = input.heure as string;
     const nomPatient = (input.nom_patient as string).trim();
     const telephone = (input.telephone_patient as string).trim();
-    const email = (input.email_patient as string).trim();
+    const email = ((input.email_patient as string) || "").trim();
 
     const prestation = ctx.prestations.find((p) => p.id === prestationId);
     const praticien = ctx.praticiens.find((p) => p.id === praticienId);
     if (!prestation || !praticien) return { succes: false, erreur: "Prestation ou praticien inconnu." };
-    if (!nomPatient || !telephone || !email) return { succes: false, erreur: "Nom, téléphone et email requis." };
+    if (!nomPatient || !telephone) return { succes: false, erreur: "Nom et téléphone requis." };
 
     const [hh, mm] = heure.split(":").map(Number);
     const debut = new Date(jour + "T00:00:00");
@@ -231,6 +275,7 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
       .select("id")
       .eq("cabinet_id", cabinetId)
       .eq("telephone", telephone)
+      .eq("nom", nomPatient)
       .maybeSingle();
     if (!patientExistant && regles?.accepte_nouveaux_patients === false) {
       return { succes: false, erreur: "Le cabinet n'accepte pas de nouveaux patients actuellement." };
@@ -238,31 +283,37 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
 
     const { data: patient, error: ep } = await supabase
       .from("patients")
-      .upsert({ cabinet_id: cabinetId, nom: nomPatient, telephone, email }, { onConflict: "cabinet_id,telephone" })
+      .upsert({ cabinet_id: cabinetId, nom: nomPatient, telephone, email: email || null }, { onConflict: "cabinet_id,telephone,nom" })
       .select("id")
       .single();
     if (ep || !patient) return { succes: false, erreur: "Erreur lors de l'enregistrement du patient." };
 
-    const { error: er } = await supabase.from("rendez_vous").insert({
-      cabinet_id: cabinetId,
-      patient_id: patient.id,
-      praticien_id: praticienId,
-      prestation_id: prestationId,
-      debut: debut.toISOString(),
-      fin: fin.toISOString(),
-      statut: "confirme",
-      origine: "chat",
-    });
-    if (er) return { succes: false, erreur: "Erreur lors de la création du rendez-vous." };
+    const { data: rdvCree, error: er } = await supabase
+      .from("rendez_vous")
+      .insert({
+        cabinet_id: cabinetId,
+        patient_id: patient.id,
+        praticien_id: praticienId,
+        prestation_id: prestationId,
+        debut: debut.toISOString(),
+        fin: fin.toISOString(),
+        statut: "confirme",
+        origine: canal === "voix" ? "ia_telephone" : "chat",
+      })
+      .select("id")
+      .single();
+    if (er || !rdvCree) return { succes: false, erreur: "Erreur lors de la création du rendez-vous." };
 
     await envoyerConfirmationRdv({
       cabinetId,
+      cabinetSlug: ctx.cabinet.slug,
+      rdvId: rdvCree.id,
       cabinetNom: ctx.cabinet.nom,
-      couleurPrimaire: "#0E5E63",
+      couleurPrimaire: ctx.cabinet.couleurPrimaire,
       iaPrenom: ctx.cabinet.iaPrenom,
       patientId: patient.id,
       patientNom: nomPatient,
-      patientEmail: email,
+      patientEmail: email || undefined,
       patientTelephone: telephone,
       prestationNom: prestation.nom,
       praticienNom: praticien.nom,
@@ -277,15 +328,12 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
 
   if (nom === "deplacer_rdv") {
     const telephone = (input.telephone_patient as string).trim();
+    const nomPatient = (input.nom_patient as string | undefined)?.trim();
     const nouveauJour = input.nouveau_jour as string;
     const nouvelleHeure = input.nouvelle_heure as string;
 
-    const { data: patient } = await supabase
-      .from("patients")
-      .select("id")
-      .eq("cabinet_id", cabinetId)
-      .eq("telephone", telephone)
-      .maybeSingle();
+    const { patient, ambigu } = await trouverPatient(supabase, cabinetId, telephone, nomPatient);
+    if (ambigu) return { succes: false, erreur: "Plusieurs patients partagent ce numéro : demander le nom du patient concerné." };
     if (!patient) return { succes: false, erreur: "Aucun patient trouvé avec ce numéro." };
 
     const { data: rdv } = await supabase
@@ -332,12 +380,9 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
 
   if (nom === "annuler_rdv") {
     const telephone = (input.telephone_patient as string).trim();
-    const { data: patient } = await supabase
-      .from("patients")
-      .select("id")
-      .eq("cabinet_id", cabinetId)
-      .eq("telephone", telephone)
-      .maybeSingle();
+    const nomPatient = (input.nom_patient as string | undefined)?.trim();
+    const { patient, ambigu } = await trouverPatient(supabase, cabinetId, telephone, nomPatient);
+    if (ambigu) return { succes: false, erreur: "Plusieurs patients partagent ce numéro : demander le nom du patient concerné." };
     if (!patient) return { succes: false, erreur: "Aucun patient trouvé avec ce numéro." };
 
     const { data: regles } = await supabase
@@ -374,7 +419,7 @@ export async function executerOutil(nom: string, input: Record<string, unknown>,
 
     const { data: patient, error: ep } = await supabase
       .from("patients")
-      .upsert({ cabinet_id: cabinetId, nom: nomPatient, telephone }, { onConflict: "cabinet_id,telephone" })
+      .upsert({ cabinet_id: cabinetId, nom: nomPatient, telephone }, { onConflict: "cabinet_id,telephone,nom" })
       .select("id")
       .single();
     if (ep || !patient) return { succes: false, erreur: "Erreur lors de l'enregistrement du patient." };

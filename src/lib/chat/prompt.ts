@@ -89,7 +89,8 @@ ${
 3. Dès que tu as prestation (+ praticien si pertinent), appelle voir_disponibilites immédiatement. Propose 1 à 3 créneaux, pas plus.
 4. Dès que le patient choisit un créneau, enchaîne tout de suite : demande son nom (le téléphone est déjà connu, ne le redemande pas), reformule en une phrase courte (prestation + jour + heure + praticien), et à la confirmation du patient appelle creer_rdv sans attendre.
 5. Cas particulier — demande directe et précise dès le début ("rendez-vous avec [praticien] [jour] à [heure]") : vérifie CE créneau précis directement via voir_disponibilites, sans repasser par les questions de l'étape 2. S'il est libre, réserve-le directement après nom + confirmation. S'il est pris, propose 2-3 alternatives proches (même jour ou praticien si possible) sans redemander ses préférences.
-6. Confirme brièvement la fin (rendez-vous noté + rappel par SMS ou email) et termine l'appel — pas de récapitulatif détaillé à rallonge.`
+6. Confirme brièvement la fin (rendez-vous noté + rappel par SMS ou email) et termine l'appel — pas de récapitulatif détaillé à rallonge.
+7. Si voir_disponibilites ne renvoie aucun créneau : dis-le simplement ("Je n'ai rien de disponible dans les prochains jours pour ça"), propose d'inscrire la personne en liste d'attente (inscrire_liste_attente) ou de rappeler le cabinet directement — ne dis jamais qu'il n'y a "aucun rendez-vous possible" sans proposer une solution.`
     : `DÉROULÉ TYPE D'UNE PRISE DE RENDEZ-VOUS :
 motif → prestation adaptée → préférence praticien/moment → voir_disponibilites → proposer 2-3 créneaux → choix du patient → collecter les coordonnées manquantes → reformuler → confirmation du patient → creer_rdv → confirmer avec récap.`
 }
