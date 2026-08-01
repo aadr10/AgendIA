@@ -66,6 +66,17 @@ export function construireAssistantVapi(input: {
       model: "nova-2",
       language: "fr",
     },
+    // Réglages de fluidité : réduit le temps mort avant que l'IA reprenne la
+    // parole après que la personne a fini de parler (au lieu du défaut, plus
+    // lent), et la laisse s'arrêter vite si on la coupe — pour un rythme de
+    // conversation plus naturel, moins "en attente".
+    startSpeakingPlan: {
+      waitSeconds: 0.4,
+    },
+    stopSpeakingPlan: {
+      numWords: 2,
+    },
+    backgroundSound: "office",
     server: {
       url: input.serverUrl,
       secret: process.env.VAPI_WEBHOOK_SECRET,
