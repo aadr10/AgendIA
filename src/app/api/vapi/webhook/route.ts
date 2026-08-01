@@ -136,10 +136,25 @@ export async function POST(request: NextRequest) {
     if (ctx) {
       const admin = createAdminClient();
       const transcript = (message.transcript as string) ?? "";
-      const dureeSecondes = Math.round((message.durationSeconds as number) ?? 0);
+
+      // Vapi n'envoie pas de champ "durationSeconds" direct sur cet événement —
+      // on calcule la durée réelle à partir de startedAt/endedAt (présents au even
+      // niveau que "call" selon le type d'appel), avec repli sur le champ "cost"
+      // en minutes si les horodatages sont absents.
+      const call = message.call as Record<string, unknown> | undefined;
+      const startedAt = (message.startedAt as string | undefined) ?? (call?.startedAt as string | undefined);
+      const endedAt = (message.endedAt as string | undefined) ?? (call?.endedAt as string | undefined);
+      let dureeSecondes = 0;
+      if (startedAt && endedAt) {
+        dureeSecondes = Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000);
+      }
+
+      // Vapi utilise "bot"/"user" pour les tours de parole (pas "assistant"), et
+      // inclut aussi "system" (le prompt interne) et "tool_calls"/"tool_call_result"
+      // dans artifact.messages — on ne garde que les échanges réellement parlés.
       const messagesStructures = ((message.artifact?.messages ?? []) as { role: string; message?: string }[])
-        .filter((m) => m.message)
-        .map((m) => ({ qui: m.role === "assistant" ? ctx.cabinet.iaPrenom : "Patient", texte: m.message }));
+        .filter((m) => (m.role === "bot" || m.role === "user") && m.message)
+        .map((m) => ({ qui: m.role === "bot" ? ctx.cabinet.iaPrenom : "Patient", texte: m.message }));
 
       let patientId: string | null = null;
       const { data: patient } = await admin
@@ -154,7 +169,7 @@ export async function POST(request: NextRequest) {
         cabinet_id: ctx.cabinet.id,
         patient_id: patientId,
         numero_appelant: numeroAppelant,
-        debut: new Date().toISOString(),
+        debut: startedAt ?? new Date().toISOString(),
         duree_secondes: dureeSecondes,
         resultat: "info",
         transcription: messagesStructures.length ? messagesStructures : [{ qui: "Système", texte: transcript }],
