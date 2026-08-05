@@ -24,8 +24,8 @@ export default function SetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">Bienvenue !</h1>
-        <p className="mt-1 text-sm text-slate-500">Choisissez votre mot de passe pour activer votre accès.</p>
+        <h1 className="text-xl font-semibold text-slate-900">Mot de passe</h1>
+        <p className="mt-1 text-sm text-slate-500">Choisissez le mot de passe de votre compte.</p>
 
         {erreur && <div className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erreur}</div>}
 
@@ -53,7 +53,7 @@ export default function SetPasswordPage() {
             disabled={isPending || !motDePasse || !confirmation}
             className="w-full rounded-lg bg-[#0E5E63] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
           >
-            {isPending ? "Activation…" : "Activer mon accès"}
+            {isPending ? "Enregistrement…" : "Enregistrer"}
           </button>
         </div>
       </div>

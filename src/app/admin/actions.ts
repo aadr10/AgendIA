@@ -1,8 +1,42 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { genererQrSvg } from "@/lib/qrcode";
+
+const COOKIE_VUE_ADMIN = "admin_vue_cabinet_id";
+
+export async function qrCodeCabinet(slug: string) {
+  await verifierSuperAdmin();
+  const lien = `${process.env.NEXT_PUBLIC_APP_URL}/${slug}`;
+  const svg = await genererQrSvg(lien);
+  return { svg, lien };
+}
+
+// Permet au super-admin de consulter le dashboard d'un cabinet exactement
+// comme le praticien le voit, sans connaître son mot de passe — pose un
+// cookie lu par getSessionContext(), qu'on quitte via quitterVueDashboard().
+export async function voirDashboardCabinet(cabinetId: string) {
+  await verifierSuperAdmin();
+  const cookieStore = await cookies();
+  cookieStore.set(COOKIE_VUE_ADMIN, cabinetId, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 60 * 60,
+    path: "/",
+  });
+  redirect("/dashboard");
+}
+
+export async function quitterVueDashboard() {
+  const cookieStore = await cookies();
+  cookieStore.delete(COOKIE_VUE_ADMIN);
+  redirect("/admin");
+}
 
 async function verifierSuperAdmin() {
   const supabase = await createClient();
@@ -20,6 +54,101 @@ export async function basculerStatutCabinet(cabinetId: string, statut: "essai" |
   const { error } = await admin.from("cabinets").update({ statut_abonnement: statut }).eq("id", cabinetId);
   if (error) return { error: error.message };
   revalidatePath("/admin");
+  return { error: null };
+}
+
+export async function majCabinetAdmin(
+  cabinetId: string,
+  input: {
+    nom: string;
+    adresse: string;
+    ville: string;
+    telephoneAffiche: string;
+    horairesTexte: string;
+    couleurPrimaire: string;
+    couleurDouce: string;
+    lienAvisGoogle: string;
+    iaPrenom: string;
+    iaTon: string;
+    smsRappelActif: boolean;
+    smsForfaitMensuel: number;
+  }
+) {
+  await verifierSuperAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("cabinets")
+    .update({
+      nom: input.nom,
+      adresse: input.adresse,
+      ville: input.ville,
+      telephone_affiche: input.telephoneAffiche,
+      horaires_texte: input.horairesTexte,
+      couleur_primaire: input.couleurPrimaire,
+      couleur_douce: input.couleurDouce,
+      lien_avis_google: input.lienAvisGoogle.trim() || null,
+      ia_prenom: input.iaPrenom,
+      ia_ton: input.iaTon,
+      sms_rappel_actif: input.smsRappelActif,
+      sms_forfait_mensuel: input.smsForfaitMensuel,
+    })
+    .eq("id", cabinetId);
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/cabinets/${cabinetId}`);
+  revalidatePath("/[slug]");
+  return { error: null };
+}
+
+const CHAMP_VERS_COLONNE_ADMIN = { logo: "logo_url", photo: "photo_hero_url" } as const;
+
+export async function uploaderImageCabinetAdmin(cabinetId: string, formData: FormData) {
+  await verifierSuperAdmin();
+  const admin = createAdminClient();
+
+  const type = formData.get("type") as "logo" | "photo";
+  const fichier = formData.get("fichier") as File | null;
+  if (!fichier || fichier.size === 0) return { error: "Aucun fichier reçu." };
+  if (!fichier.type.startsWith("image/")) return { error: "Le fichier doit être une image." };
+  if (fichier.size > 5 * 1024 * 1024) return { error: "L'image dépasse la taille maximale (5 Mo)." };
+
+  const colonne = CHAMP_VERS_COLONNE_ADMIN[type];
+  if (!colonne) return { error: "Type d'image inconnu." };
+
+  const ext = fichier.name.split(".").pop() || "jpg";
+  const chemin = `${cabinetId}/${type}-${Date.now()}.${ext}`;
+
+  const { error: eUpload } = await admin.storage
+    .from("cabinet-media")
+    .upload(chemin, fichier, { contentType: fichier.type, upsert: true });
+  if (eUpload) return { error: "Échec de l'envoi : " + eUpload.message };
+
+  const { data: pub } = admin.storage.from("cabinet-media").getPublicUrl(chemin);
+
+  const { error: eUpdate } = await admin.from("cabinets").update({ [colonne]: pub.publicUrl }).eq("id", cabinetId);
+  if (eUpdate) return { error: eUpdate.message };
+
+  revalidatePath(`/admin/cabinets/${cabinetId}`);
+  revalidatePath("/[slug]");
+  return { error: null, url: pub.publicUrl };
+}
+
+export async function retirerImageCabinetAdmin(cabinetId: string, type: "logo" | "photo") {
+  await verifierSuperAdmin();
+  const admin = createAdminClient();
+  const colonne = CHAMP_VERS_COLONNE_ADMIN[type];
+  const { error } = await admin.from("cabinets").update({ [colonne]: null }).eq("id", cabinetId);
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/cabinets/${cabinetId}`);
+  revalidatePath("/[slug]");
+  return { error: null };
+}
+
+export async function basculerStatutDemande(demandeId: string, statut: "nouveau" | "contacte" | "traite") {
+  await verifierSuperAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("demandes_demo").update({ statut }).eq("id", demandeId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/demandes");
   return { error: null };
 }
 
@@ -43,6 +172,7 @@ export async function creerCabinet(input: {
   couleurPrimaire: string;
   couleurDouce: string;
   emailAdmin: string;
+  lienAvisGoogle: string;
   iaPrenom: string;
   iaTon: string;
   iaMessageAccueil: string;
@@ -54,6 +184,7 @@ export async function creerCabinet(input: {
   delaiAnnulationHeures: number;
   accepteNouveauxPatients: boolean;
   achterNumeroTwilio: boolean;
+  smsForfaitMensuel: number;
 }) {
   await verifierSuperAdmin();
   const admin = createAdminClient();
@@ -72,13 +203,43 @@ export async function creerCabinet(input: {
     if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
       return { error: "Twilio n'est pas configuré, impossible d'acheter un numéro." };
     }
+    if (!process.env.VAPI_API_KEY || !process.env.VAPI_WEBHOOK_SECRET || !process.env.NEXT_PUBLIC_APP_URL) {
+      return { error: "Vapi n'est pas configuré, impossible d'activer la voix sur un nouveau numéro." };
+    }
     try {
       const twilio = (await import("twilio")).default;
       const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
       const disponibles = await client.availablePhoneNumbers("US").local.list({ smsEnabled: true, voiceEnabled: true, limit: 1 });
       if (disponibles.length === 0) return { error: "Aucun numéro disponible à l'achat pour le moment." };
-      const achete = await client.incomingPhoneNumbers.create({ phoneNumber: disponibles[0].phoneNumber });
+      const achete = await client.incomingPhoneNumbers.create({
+        phoneNumber: disponibles[0].phoneNumber,
+        // Vapi enregistre normalement ce webhook lui-même à l'import, mais on le
+        // fixe aussi ici en filet de sécurité : sans lui, le numéro sonne dans le
+        // vide côté Twilio même si tout le reste est correct.
+        voiceUrl: "https://api.vapi.ai/twilio/inbound_call",
+        voiceMethod: "POST",
+      });
       numeroTwilio = achete.phoneNumber;
+
+      const resVapi = await fetch("https://api.vapi.ai/phone-number", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.VAPI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "twilio",
+          number: numeroTwilio,
+          twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
+          twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
+          name: `${nom} (auto)`,
+          server: { url: `${process.env.NEXT_PUBLIC_APP_URL}/api/vapi/webhook`, secret: process.env.VAPI_WEBHOOK_SECRET },
+        }),
+      });
+      if (!resVapi.ok) {
+        const detail = await resVapi.text();
+        return {
+          error: null,
+          avertissement: `Numéro Twilio acheté (${numeroTwilio}) mais l'enregistrement chez Vapi a échoué — la voix ne fonctionnera pas tant que ce n'est pas corrigé. Détail : ${detail}`,
+        };
+      }
     } catch (e) {
       return { error: "Échec de l'achat du numéro : " + (e instanceof Error ? e.message : "erreur inconnue") };
     }
@@ -99,8 +260,10 @@ export async function creerCabinet(input: {
       ia_ton: input.iaTon,
       ia_message_accueil: input.iaMessageAccueil,
       horaires_texte: input.horairesTexte,
+      lien_avis_google: input.lienAvisGoogle.trim() || null,
       numero_twilio: numeroTwilio,
       statut_abonnement: "essai",
+      sms_forfait_mensuel: input.smsForfaitMensuel,
     })
     .select("id")
     .single();
@@ -159,15 +322,34 @@ export async function creerCabinet(input: {
     await admin.from("faq").insert(faqACreer.map((f) => ({ cabinet_id: cabinet.id, question: f.question.trim(), reponse: f.reponse.trim() })));
   }
 
-  const { data: authUser, error: eAuth } = await admin.auth.admin.inviteUserByEmail(emailAdmin, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/auth/set-password`,
-  });
-  if (eAuth || !authUser?.user) {
-    return { error: null, avertissement: "Cabinet créé mais l'invitation du compte a échoué : " + eAuth?.message, slug };
+  // Supabase renvoie parfois une erreur transitoire de vérification de clé JWT
+  // sur cet appel précis (souci ponctuel côté plateforme) — on retente avant d'abandonner.
+  // On utilise generateLink (pas inviteUserByEmail) pour récupérer le lien directement :
+  // ça évite de dépendre de la délivrabilité de l'email Supabase, le lien peut être
+  // partagé à la main (WhatsApp, SMS...) juste après la création du cabinet.
+  let derniereErreur: string | undefined;
+  let userId: string | null = null;
+  let lienEspacePraticien: string | null = null;
+  for (let tentative = 0; tentative < 3 && !userId; tentative++) {
+    const { data: lienData, error: eAuth } = await admin.auth.admin.generateLink({
+      type: "invite",
+      email: emailAdmin,
+      options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/auth/set-password` },
+    });
+    if (!eAuth && lienData?.user) {
+      userId = lienData.user.id;
+      lienEspacePraticien = lienData.properties.action_link;
+    } else {
+      derniereErreur = eAuth?.message;
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  if (!userId) {
+    return { error: null, avertissement: "Cabinet créé mais l'invitation du compte a échoué : " + derniereErreur, slug };
   }
 
-  await admin.from("users").insert({ id: authUser.user.id, cabinet_id: cabinet.id, email: emailAdmin, role: "admin" });
+  await admin.from("users").insert({ id: userId, cabinet_id: cabinet.id, email: emailAdmin, role: "admin" });
 
   revalidatePath("/admin");
-  return { error: null, slug, numeroTwilio };
+  return { error: null, slug, numeroTwilio, lienEspacePraticien };
 }
