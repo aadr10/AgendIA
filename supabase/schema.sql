@@ -26,7 +26,11 @@ create table public.cabinets (
   ia_ton                text not null default 'chaleureux-pro',
   ia_message_accueil    text,
   horaires_texte        text,
+  lien_avis_google      text,
+  sms_rappel_actif      boolean not null default true,
+  sms_forfait_mensuel   integer not null default 250,
   statut_abonnement     text not null default 'essai',
+  masquer_rdv_anciens   boolean not null default false,
   minutes_incluses      integer not null default 800,
   minutes_consommees    integer not null default 0,
   cree_le               timestamptz not null default now()
@@ -107,7 +111,10 @@ create table public.patients (
   email       text,
   notes       text,
   cree_le     timestamptz not null default now(),
-  unique (cabinet_id, telephone)
+  -- (téléphone, nom) et pas juste téléphone : une famille peut partager un
+  -- seul numéro pour plusieurs patients distincts (ex: la maman qui réserve
+  -- pour ses 3 enfants) — chacun garde sa propre fiche et ses propres rdv.
+  unique (cabinet_id, telephone, nom)
 );
 create index patients_cabinet_id_idx on public.patients(cabinet_id);
 
@@ -220,7 +227,7 @@ create table public.notifications (
   id          uuid primary key default gen_random_uuid(),
   cabinet_id  uuid not null references public.cabinets(id) on delete cascade,
   patient_id  uuid references public.patients(id) on delete set null,
-  type        text not null check (type in ('confirmation', 'rappel', 'replanification')),
+  type        text not null check (type in ('confirmation', 'rappel', 'replanification', 'avis')),
   canal       text not null check (canal in ('sms', 'email')),
   statut      text not null default 'en_attente',
   envoye_le   timestamptz
@@ -319,6 +326,23 @@ create policy "cabinet_isolation" on public.regles
 create policy "cabinet_isolation" on public.liste_attente
   for all using (cabinet_id = public.current_cabinet_id())
   with check (cabinet_id = public.current_cabinet_id());
+
+-- ----------------------------------------------------------------------------
+-- DEMANDES_DEMO (leads de la page vitrine publique, avant création de cabinet)
+-- ----------------------------------------------------------------------------
+create table public.demandes_demo (
+  id          uuid primary key default gen_random_uuid(),
+  nom         text not null,
+  email       text not null,
+  telephone   text,
+  metier      text,
+  cabinet_nom text,
+  message     text,
+  statut      text not null default 'nouveau' check (statut in ('nouveau', 'contacte', 'traite')),
+  cree_le     timestamptz not null default now()
+);
+alter table public.demandes_demo enable row level security;
+-- Pas de policy : accessible uniquement via le client service-role (admin + formulaire public).
 
 create policy "cabinet_isolation" on public.notifications
   for all using (cabinet_id = public.current_cabinet_id())

@@ -5,6 +5,7 @@ import AgendaNav from "./agenda-nav";
 import MonthView from "./month-view";
 import YearView from "./year-view";
 import { toLocalISODate, parseLocalISODate, lundiDeLaSemaine, debutDuMois } from "@/lib/dates";
+import MasquerAnciensToggle from "./masquer-anciens-toggle";
 
 type Vue = "jour" | "semaine" | "mois" | "annee";
 
@@ -18,6 +19,8 @@ export default async function AgendaPage({
   const dateRef = dateParam ? parseLocalISODate(dateParam) : new Date();
 
   const { supabase, cabinet } = await getSessionContext();
+  const masquerAnciens = !!(cabinet as { masquer_rdv_anciens?: boolean }).masquer_rdv_anciens;
+  const debutMoisActuel = debutDuMois(new Date());
 
   const [{ data: praticiens }, { data: prestations }] = await Promise.all([
     supabase
@@ -39,6 +42,7 @@ export default async function AgendaPage({
       <div className="space-y-4">
         <PageHeader title="Agenda" />
         <AgendaNav vue={vue} dateISO={toLocalISODate(dateRef)} />
+        <MasquerAnciensToggle actif={masquerAnciens} />
         <YearView annee={dateRef.getFullYear()} />
       </div>
     );
@@ -51,18 +55,22 @@ export default async function AgendaPage({
     const grilleFin = new Date(dernierDuMois);
     grilleFin.setDate(grilleFin.getDate() + (7 - ((dernierDuMois.getDay() + 6) % 7)));
 
-    const { data: rdvsData } = await supabase
-      .from("rendez_vous")
-      .select("debut, praticien_id")
-      .eq("cabinet_id", cabinet.id)
-      .neq("statut", "annule")
-      .gte("debut", grilleDebut.toISOString())
-      .lt("debut", grilleFin.toISOString());
+    const { data: rdvsData } =
+      masquerAnciens && grilleFin <= debutMoisActuel
+        ? { data: [] }
+        : await supabase
+            .from("rendez_vous")
+            .select("debut, praticien_id")
+            .eq("cabinet_id", cabinet.id)
+            .neq("statut", "annule")
+            .gte("debut", (masquerAnciens ? new Date(Math.max(grilleDebut.getTime(), debutMoisActuel.getTime())) : grilleDebut).toISOString())
+            .lt("debut", grilleFin.toISOString());
 
     return (
       <div className="space-y-4">
         <PageHeader title="Agenda" />
         <AgendaNav vue={vue} dateISO={toLocalISODate(dateRef)} />
+        <MasquerAnciensToggle actif={masquerAnciens} />
         <MonthView
           moisISO={toLocalISODate(premierDuMois)}
           praticiens={praticiens ?? []}
@@ -77,23 +85,28 @@ export default async function AgendaPage({
   const dateFin = new Date(dateDebut);
   dateFin.setDate(dateFin.getDate() + nbJours);
 
-  const [{ data: rdvsData }, { data: blocagesData }] = await Promise.all([
-    supabase
-      .from("rendez_vous")
-      .select(
-        "id, debut, fin, statut, origine, patient_id, praticien_id, prestation_id, patients(nom), prestations(nom, duree_minutes)"
-      )
-      .eq("cabinet_id", cabinet.id)
-      .neq("statut", "annule")
-      .gte("debut", dateDebut.toISOString())
-      .lt("debut", dateFin.toISOString()),
-    supabase
-      .from("blocages")
-      .select("id, praticien_id, debut, fin, motif")
-      .eq("cabinet_id", cabinet.id)
-      .gte("debut", dateDebut.toISOString())
-      .lt("debut", dateFin.toISOString()),
-  ]);
+  const debutRequete = masquerAnciens ? new Date(Math.max(dateDebut.getTime(), debutMoisActuel.getTime())) : dateDebut;
+  const cacherToutLIntervalle = masquerAnciens && dateFin <= debutMoisActuel;
+
+  const [{ data: rdvsData }, { data: blocagesData }] = cacherToutLIntervalle
+    ? [{ data: [] }, { data: [] }]
+    : await Promise.all([
+        supabase
+          .from("rendez_vous")
+          .select(
+            "id, debut, fin, statut, origine, patient_id, praticien_id, prestation_id, patients(nom), prestations(nom, duree_minutes)"
+          )
+          .eq("cabinet_id", cabinet.id)
+          .neq("statut", "annule")
+          .gte("debut", debutRequete.toISOString())
+          .lt("debut", dateFin.toISOString()),
+        supabase
+          .from("blocages")
+          .select("id, praticien_id, debut, fin, motif")
+          .eq("cabinet_id", cabinet.id)
+          .gte("debut", debutRequete.toISOString())
+          .lt("debut", dateFin.toISOString()),
+      ]);
 
   const rdvs = (rdvsData ?? []).map((r) => ({
     id: r.id,
@@ -121,6 +134,7 @@ export default async function AgendaPage({
     <div className="space-y-4">
       <PageHeader title="Agenda" />
       <AgendaNav vue={vue} dateISO={toLocalISODate(dateDebut)} />
+      <MasquerAnciensToggle actif={masquerAnciens} />
       <AgendaClient
         semaineDebutISO={toLocalISODate(dateDebut)}
         nbJours={nbJours}

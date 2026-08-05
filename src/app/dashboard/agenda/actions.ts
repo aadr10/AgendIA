@@ -5,6 +5,14 @@ import { getSessionContext } from "@/lib/cabinet";
 import { creneauLibre, prochainCreneauLibre } from "@/lib/availability";
 import { envoyerConfirmationRdv, envoyerLienReplanification } from "@/lib/notifications";
 
+export async function toggleMasquerRdvAnciens(actif: boolean) {
+  const { supabase, cabinet } = await getSessionContext();
+  const { error } = await supabase.from("cabinets").update({ masquer_rdv_anciens: actif }).eq("id", cabinet.id);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/agenda");
+  return { error: null };
+}
+
 export async function creerRdv(input: {
   patientNom: string;
   patientTelephone: string;
