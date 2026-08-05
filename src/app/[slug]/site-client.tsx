@@ -298,6 +298,17 @@ export default function SitePatientClient({
               </div>
               <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm">
                 <h3 className="mb-3 font-semibold">Infos pratiques</h3>
+                <div className="mb-3 overflow-hidden rounded-lg border border-slate-200">
+                  <iframe
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(`${cabinet.adresse}, ${cabinet.ville}`)}&output=embed`}
+                    width="100%"
+                    height="180"
+                    style={{ border: 0, display: "block" }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title={`Carte — ${cabinet.adresse}, ${cabinet.ville}`}
+                  />
+                </div>
                 <p className="mb-1 text-slate-600">
                   📍{" "}
                   <a
