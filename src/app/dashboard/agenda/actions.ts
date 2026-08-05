@@ -36,23 +36,27 @@ export async function creerRdv(input: {
         telephone: input.patientTelephone,
         email: input.patientEmail || null,
       },
-      { onConflict: "cabinet_id,telephone" }
+      { onConflict: "cabinet_id,telephone,nom" }
     )
     .select("id")
     .single();
   if (ep || !patient) return { error: "Impossible d'enregistrer la fiche patient : " + ep?.message };
 
-  const { error: er } = await supabase.from("rendez_vous").insert({
-    cabinet_id: cabinet.id,
-    patient_id: patient.id,
-    praticien_id: input.praticienId,
-    prestation_id: input.prestationId,
-    debut: debut.toISOString(),
-    fin: fin.toISOString(),
-    statut: "confirme",
-    origine: "manuel",
-  });
-  if (er) return { error: er.message };
+  const { data: rdvCree, error: er } = await supabase
+    .from("rendez_vous")
+    .insert({
+      cabinet_id: cabinet.id,
+      patient_id: patient.id,
+      praticien_id: input.praticienId,
+      prestation_id: input.prestationId,
+      debut: debut.toISOString(),
+      fin: fin.toISOString(),
+      statut: "confirme",
+      origine: "manuel",
+    })
+    .select("id")
+    .single();
+  if (er || !rdvCree) return { error: er?.message };
 
   if (input.patientEmail) {
     const { data: praticien } = await supabase.from("praticiens").select("nom").eq("id", input.praticienId).single();
@@ -60,6 +64,8 @@ export async function creerRdv(input: {
     if (praticien && prestation) {
       await envoyerConfirmationRdv({
         cabinetId: cabinet.id,
+        cabinetSlug: cabinet.slug,
+        rdvId: rdvCree.id,
         cabinetNom: cabinet.nom,
         couleurPrimaire: cabinet.couleur_primaire,
         iaPrenom: cabinet.ia_prenom,
@@ -121,6 +127,19 @@ export async function annulerRdv(id: string) {
   const { error } = await supabase
     .from("rendez_vous")
     .update({ statut: "annule" })
+    .eq("id", id)
+    .eq("cabinet_id", cabinet.id);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/agenda");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function marquerAbsentRdv(id: string) {
+  const { supabase, cabinet } = await getSessionContext();
+  const { error } = await supabase
+    .from("rendez_vous")
+    .update({ statut: "absent" })
     .eq("id", id)
     .eq("cabinet_id", cabinet.id);
   if (error) return { error: error.message };
@@ -248,7 +267,7 @@ export async function creerBlocage(input: {
         patientTelephone: patient.telephone,
         prestationNom: prestation?.nom ?? "",
         ancienDebut: new Date(r.debut),
-        lienUrl: `${appUrl}/${cabinet.slug}/replanifier/${r.id}`,
+        lienUrl: `${appUrl}/r/${r.id}`,
       });
     })
   );
