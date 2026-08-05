@@ -9,6 +9,7 @@ type Cabinet = {
   slug: string;
   nom: string;
   metier: string;
+  seance: string;
   ville: string;
   adresse: string;
   telephoneAffiche: string;
@@ -17,9 +18,12 @@ type Cabinet = {
   couleurPrimaire: string;
   couleurDouce: string;
   photoHeroUrl: string | null;
+  // Vrai uniquement pour l'offre Premium (numéro Twilio + voix IA actifs) —
+  // sans ça, on ne doit jamais promettre "répond au téléphone" au patient.
+  aVocal: boolean;
 };
 type Prestation = { id: string; nom: string; duree_minutes: number; prix: number };
-type Praticien = { id: string; nom: string; couleur_agenda: string };
+type Praticien = { id: string; nom: string; couleur_agenda: string; photo_url: string | null };
 type Liaison = { praticien_id: string; prestation_id: string };
 
 function initiales(nom: string) {
@@ -106,6 +110,14 @@ export default function SitePatientClient({
     setStep(1);
   }
 
+  function demarrerReservation() {
+    setBooking(true);
+    // Un seul type de rendez-vous proposé : pas besoin de demander de choisir, on va direct à l'étape suivante.
+    if (prestations.length === 1) {
+      choisirPrestation(prestations[0].id);
+    }
+  }
+
   function choisirPraticien(choice: string) {
     setPraticienChoice(choice);
     setStep(2);
@@ -155,7 +167,7 @@ export default function SitePatientClient({
   }
 
   const inputCls = "w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm";
-  const canConfirm = nom.trim() && tel.trim() && email.trim();
+  const canConfirm = nom.trim() && tel.trim();
   const jourChoisi = jours.find((j) => j.iso === jourISO);
 
   return (
@@ -186,7 +198,14 @@ export default function SitePatientClient({
         {!booking ? (
           <>
             <section
-              className="relative overflow-hidden rounded-2xl px-6 py-10 text-center sm:py-16"
+              className={
+                cabinet.photoHeroUrl
+                  // Déborde du conteneur centré (max-w-4xl) pour remplir toute la largeur
+                  // de l'écran — sans ce calc, la photo restait cantonnée à une carte avec
+                  // une marge blanche visible tout autour.
+                  ? "relative -ml-[calc(50vw-50%)] -mr-[calc(50vw-50%)] w-screen overflow-hidden px-6 py-14 text-center sm:py-20"
+                  : "relative overflow-hidden rounded-2xl px-6 py-10 text-center sm:py-16"
+              }
               style={
                 cabinet.photoHeroUrl
                   ? {
@@ -205,7 +224,7 @@ export default function SitePatientClient({
                   <span className="absolute h-full w-full animate-ping rounded-full opacity-60" style={{ background: t.primary }} />
                   <span className="relative h-2 w-2 rounded-full" style={{ background: t.primary }} />
                 </span>
-                {cabinet.iaPrenom} répond au téléphone 24h/24
+                {cabinet.aVocal ? `${cabinet.iaPrenom} répond au téléphone 24h/24` : "Réservation en ligne 24h/24"}
               </div>
               <h1
                 className="mx-auto max-w-xl text-3xl font-bold leading-tight sm:text-4xl"
@@ -214,17 +233,18 @@ export default function SitePatientClient({
                   textShadow: cabinet.photoHeroUrl ? "0 2px 16px rgba(0,0,0,0.4)" : "none",
                 }}
               >
-                Réservez votre séance en 30 secondes
+                Réservez votre {cabinet.seance} en 30 secondes
               </h1>
               <p
                 className="mx-auto mt-3 max-w-md text-sm"
                 style={{ color: cabinet.photoHeroUrl ? "rgba(255,255,255,0.92)" : "#475569" }}
               >
-                Choisissez votre créneau en ligne, ou appelez à n&apos;importe quelle heure : {cabinet.iaPrenom}, notre
-                secrétaire, décroche toujours.
+                {cabinet.aVocal
+                  ? `Choisissez votre créneau en ligne, ou appelez à n'importe quelle heure : ${cabinet.iaPrenom}, notre secrétaire, décroche toujours.`
+                  : "Choisissez votre créneau en ligne, en toute autonomie."}
               </p>
               <button
-                onClick={() => setBooking(true)}
+                onClick={demarrerReservation}
                 className="mt-6 rounded-xl px-8 py-3.5 text-base font-semibold text-white shadow-lg transition-transform hover:scale-105"
                 style={{ background: t.primary }}
               >
@@ -232,6 +252,7 @@ export default function SitePatientClient({
               </button>
             </section>
 
+            {prestations.length > 1 && (
             <section className="mt-10">
               <h2 className="mb-4 text-xl font-semibold">Nos prestations</h2>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -253,6 +274,7 @@ export default function SitePatientClient({
                 ))}
               </div>
             </section>
+            )}
 
             <section className="mt-10 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -260,10 +282,15 @@ export default function SitePatientClient({
                 {praticiens.map((p, i) => (
                   <div key={p.id} className="mb-2 flex items-center gap-3">
                     <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
-                      style={{ background: t.primary, opacity: 1 - i * 0.2 }}
+                      className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-semibold text-white"
+                      style={{ background: t.primary, opacity: p.photo_url ? 1 : 1 - i * 0.2 }}
                     >
-                      {initiales(p.nom)}
+                      {p.photo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.photo_url} alt={p.nom} className="h-full w-full object-cover" />
+                      ) : (
+                        initiales(p.nom)
+                      )}
                     </span>
                     <span className="text-sm">{p.nom}</span>
                   </div>
@@ -272,12 +299,23 @@ export default function SitePatientClient({
               <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm">
                 <h3 className="mb-3 font-semibold">Infos pratiques</h3>
                 <p className="mb-1 text-slate-600">
-                  📍 {cabinet.adresse}, {cabinet.ville}
+                  📍{" "}
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${cabinet.adresse}, ${cabinet.ville}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline decoration-slate-300 underline-offset-2 hover:decoration-slate-500"
+                  >
+                    {cabinet.adresse}, {cabinet.ville}
+                  </a>
                 </p>
                 <p className="mb-1 text-slate-600">🕗 {cabinet.horairesTexte}</p>
-                <p className="text-slate-600">
-                  📞 {cabinet.telephoneAffiche} — {cabinet.iaPrenom} répond 24h/24
-                </p>
+                {cabinet.telephoneAffiche && (
+                  <p className="text-slate-600">
+                    📞 {cabinet.telephoneAffiche}
+                    {cabinet.aVocal && ` — ${cabinet.iaPrenom} répond 24h/24`}
+                  </p>
+                )}
               </div>
             </section>
           </>
@@ -329,10 +367,15 @@ export default function SitePatientClient({
                         className="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-left hover:border-slate-400"
                       >
                         <span
-                          className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
+                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-semibold text-white"
                           style={{ background: t.primary }}
                         >
-                          {initiales(p.nom)}
+                          {p.photo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.photo_url} alt={p.nom} className="h-full w-full object-cover" />
+                          ) : (
+                            initiales(p.nom)
+                          )}
                         </span>
                         <span className="text-sm font-medium">{p.nom}</span>
                       </button>
@@ -402,8 +445,8 @@ export default function SitePatientClient({
                   {erreur && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{erreur}</div>}
                   <div className="space-y-3">
                     <input placeholder="Nom et prénom" value={nom} onChange={(e) => setNom(e.target.value)} className={inputCls} />
+                    <input placeholder="Email (recommandé)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
                     <input placeholder="Téléphone" value={tel} onChange={(e) => setTel(e.target.value)} className={inputCls} />
-                    <input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
                   </div>
                   <button
                     disabled={!canConfirm || envoi}
@@ -429,9 +472,23 @@ export default function SitePatientClient({
                     {jourChoisi?.full} à {heure} · {praticienAssigneNom}
                   </p>
                   <div className="mx-auto mt-4 max-w-xs rounded-xl p-3 text-xs text-slate-600" style={{ background: t.soft }}>
-                    📧 Confirmation envoyée à {email}
-                    <br />
-                    📱 Rappel SMS la veille · Besoin de changer ? Appelez, {cabinet.iaPrenom} s&apos;en occupe 24h/24.
+                    {email.trim() ? (
+                      <>
+                        📧 Confirmation envoyée à {email}
+                        <br />
+                        📧 Rappel par email la veille ·{" "}
+                        {cabinet.aVocal
+                          ? `Besoin de changer ? Appelez, ${cabinet.iaPrenom} s'en occupe 24h/24.`
+                          : "Besoin de changer ? Un lien d'annulation se trouve dans votre email de confirmation."}
+                      </>
+                    ) : (
+                      <>
+                        📱 Rappel par SMS la veille ·{" "}
+                        {cabinet.aVocal
+                          ? `Besoin de changer ? Appelez, ${cabinet.iaPrenom} s'en occupe 24h/24.`
+                          : "Besoin de changer ? Contactez directement le cabinet."}
+                      </>
+                    )}
                   </div>
                   <button onClick={resetBooking} className="mt-5 text-sm font-medium" style={{ color: t.primary }}>
                     ← Retour au site
@@ -442,6 +499,15 @@ export default function SitePatientClient({
           </section>
         )}
       </div>
+      <footer className="px-6 pb-8 text-center text-[11px] text-slate-400">
+        <a href="/mentions-legales" className="underline hover:text-slate-600">
+          Mentions légales
+        </a>
+        {" · "}
+        <a href="/confidentialite" className="underline hover:text-slate-600">
+          Confidentialité
+        </a>
+      </footer>
       <ChatWidget
         slug={cabinet.slug}
         iaPrenom={cabinet.iaPrenom}
