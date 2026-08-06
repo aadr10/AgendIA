@@ -172,6 +172,7 @@ export default function SitePatientClient({
 
   return (
     <div className="min-h-screen" style={{ background: "#F7F9F8", color: t.dark, fontFamily: "system-ui, sans-serif" }}>
+      <div style={{ height: 5, background: t.primary }} />
       <div className="mx-auto max-w-4xl px-4 pb-24">
         <header className="flex items-center justify-between py-5">
           <div className="flex items-center gap-3">
@@ -519,6 +520,7 @@ export default function SitePatientClient({
           Confidentialité
         </a>
       </footer>
+      <div style={{ height: 5, background: t.primary }} />
       <ChatWidget
         slug={cabinet.slug}
         iaPrenom={cabinet.iaPrenom}
