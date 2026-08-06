@@ -1,14 +1,48 @@
 import { notFound } from "next/navigation";
+import type { Metadata, Viewport } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import SitePatientClient from "./site-client";
+import { METIER_LABELS, metierConfig } from "@/lib/metiers";
 
-const METIER_LABELS: Record<string, string> = {
-  kine: "Kinésithérapie",
-  osteo: "Ostéopathie",
-  dentiste: "Dentisterie",
-  barber: "Barbier",
-  veto: "Vétérinaire",
-};
+// Le thème de couleur de la barre navigateur/fenêtre PWA (viewport) est un
+// export séparé de "metadata" dans cette version de Next.js — les deux
+// exports ne peuvent pas coexister à l'intérieur du même objet.
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Viewport> {
+  const { slug } = await params;
+  const supabase = createAdminClient();
+  const { data: cabinet } = await supabase.from("cabinets").select("couleur_primaire").eq("slug", slug).single();
+  return { themeColor: cabinet?.couleur_primaire || "#0E5E63" };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = createAdminClient();
+  const { data: cabinet } = await supabase
+    .from("cabinets")
+    .select("nom, metier, ville")
+    .eq("slug", slug)
+    .single();
+
+  if (!cabinet) return { title: "Cabinet introuvable" };
+
+  const metier = METIER_LABELS[cabinet.metier] ?? cabinet.metier;
+  const titre = `${cabinet.nom} — Prendre rendez-vous${cabinet.ville ? ` à ${cabinet.ville}` : ""}`;
+  const description = `Réservez votre rendez-vous chez ${cabinet.nom} (${metier}) en ligne 24h/24, ou appelez directement — notre secrétaire répond à toute heure.`;
+
+  return {
+    title: titre,
+    description,
+    openGraph: { title: titre, description, type: "website" },
+  };
+}
 
 export default async function CabinetPublicPage({
   params,
@@ -35,7 +69,7 @@ export default async function CabinetPublicPage({
       .order("prix"),
     supabase
       .from("praticiens")
-      .select("id, nom, couleur_agenda")
+      .select("id, nom, couleur_agenda, photo_url")
       .eq("cabinet_id", cabinet.id)
       .eq("actif", true)
       .order("nom"),
@@ -52,6 +86,7 @@ export default async function CabinetPublicPage({
         slug: cabinet.slug,
         nom: cabinet.nom,
         metier: METIER_LABELS[cabinet.metier] ?? cabinet.metier,
+        seance: metierConfig(cabinet.metier).seance,
         ville: cabinet.ville ?? "",
         adresse: cabinet.adresse ?? "",
         telephoneAffiche: cabinet.telephone_affiche ?? "",
@@ -60,6 +95,7 @@ export default async function CabinetPublicPage({
         couleurPrimaire: cabinet.couleur_primaire,
         couleurDouce: cabinet.couleur_douce,
         photoHeroUrl: cabinet.photo_hero_url,
+        aVocal: !!cabinet.numero_twilio,
       }}
       prestations={prestations ?? []}
       praticiens={praticiens ?? []}
