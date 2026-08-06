@@ -209,8 +209,12 @@ export async function creerCabinet(input: {
     try {
       const twilio = (await import("twilio")).default;
       const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-      const disponibles = await client.availablePhoneNumbers("US").local.list({ smsEnabled: true, voiceEnabled: true, limit: 1 });
-      if (disponibles.length === 0) return { error: "Aucun numéro disponible à l'achat pour le moment." };
+      // Twilio ne propose pas de numéros fixes belges en achat libre-service,
+      // seulement des mobiles (+32 4xx) — parfait ici : ça sonne comme un vrai
+      // numéro belge pour le patient (pas de surcoût international, pas de
+      // méfiance liée à un indicatif étranger).
+      const disponibles = await client.availablePhoneNumbers("BE").mobile.list({ smsEnabled: true, voiceEnabled: true, limit: 1 });
+      if (disponibles.length === 0) return { error: "Aucun numéro belge disponible à l'achat pour le moment." };
       const achete = await client.incomingPhoneNumbers.create({
         phoneNumber: disponibles[0].phoneNumber,
         // Vapi enregistre normalement ce webhook lui-même à l'import, mais on le
