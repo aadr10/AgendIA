@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { creerCabinet, qrCodeCabinet } from "../actions";
 import { METIERS, metierConfig } from "@/lib/metiers";
+import { type Offre, OFFRE_LABEL, OFFRE_DESCRIPTION, PALIERS_SMS } from "@/lib/offres";
 
 const inputCls = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
 // Variante sans "w-full" pour les champs placés dans une rangée flex (sinon
@@ -51,8 +52,18 @@ export default function NouveauCabinetClient() {
   const [delaiMinReservationHeures, setDelaiMinReservationHeures] = useState(2);
   const [delaiAnnulationHeures, setDelaiAnnulationHeures] = useState(24);
   const [accepteNouveauxPatients, setAccepteNouveauxPatients] = useState(true);
-  const [achterNumeroTwilio, setAchterNumeroTwilio] = useState(false);
+  const [offre, setOffre] = useState<Offre>("site");
   const [smsForfaitMensuel, setSmsForfaitMensuel] = useState(250);
+
+  // Certaines offres n'ont pas les mêmes paliers (ex: "site" a un palier 0 SMS
+  // que les autres n'ont pas) — en changeant d'offre, on retombe sur le premier
+  // palier valide plutôt que de garder une valeur qui n'existe plus pour elle.
+  function changerOffre(nouvelleOffre: Offre) {
+    setOffre(nouvelleOffre);
+    if (!PALIERS_SMS[nouvelleOffre].some((p) => p.sms === smsForfaitMensuel)) {
+      setSmsForfaitMensuel(PALIERS_SMS[nouvelleOffre][0].sms);
+    }
+  }
 
   function changerMetier(nouveauMetier: string) {
     setMetier(nouveauMetier);
@@ -82,7 +93,7 @@ export default function NouveauCabinetClient() {
         delaiMinReservationHeures,
         delaiAnnulationHeures,
         accepteNouveauxPatients,
-        achterNumeroTwilio,
+        offre,
         smsForfaitMensuel,
       });
       if (res.error) setErreur(res.error);
@@ -353,14 +364,28 @@ export default function NouveauCabinetClient() {
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-1 font-medium text-slate-800">5. Numéro de téléphone</h2>
-        <p className="mb-3 text-xs text-slate-500">
-          Offre Premium (site + téléphone géré par l&apos;IA) ou Site seul, sans numéro.
-        </p>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={achterNumeroTwilio} onChange={(e) => setAchterNumeroTwilio(e.target.checked)} />
-          Attribuer un numéro de téléphone (offre Premium)
-        </label>
+        <h2 className="mb-1 font-medium text-slate-800">5. Offre</h2>
+        <p className="mb-3 text-xs text-slate-500">Détermine si un numéro de téléphone est attribué, et qui répond en premier.</p>
+        <div className="space-y-2">
+          {(Object.keys(OFFRE_LABEL) as Offre[]).map((o) => (
+            <label
+              key={o}
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${offre === o ? "border-slate-400 bg-slate-50" : "border-slate-200"}`}
+            >
+              <input
+                type="radio"
+                name="offre"
+                checked={offre === o}
+                onChange={() => changerOffre(o)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium text-slate-800">{OFFRE_LABEL[o]}</span>
+                <span className="block text-xs text-slate-500">{OFFRE_DESCRIPTION[o]}</span>
+              </span>
+            </label>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
@@ -375,10 +400,11 @@ export default function NouveauCabinetClient() {
           onChange={(e) => setSmsForfaitMensuel(+e.target.value)}
           className={inputCls}
         >
-          <option value={0}>0 — Email uniquement (64,99€ Site+Chatbot)</option>
-          <option value={250}>250 SMS/mois (94,99€ Site+Chatbot / 199,99€ Premium)</option>
-          <option value={500}>500 SMS/mois (119,99€ Site+Chatbot / 249,99€ Premium)</option>
-          <option value={1000}>1000 SMS/mois (174,99€ Site+Chatbot / 279,99€ Premium)</option>
+          {PALIERS_SMS[offre].map((p) => (
+            <option key={p.sms} value={p.sms}>
+              {p.sms === 0 ? "0 — Email uniquement" : `${p.sms} SMS/mois`} — {p.prix.toFixed(2)}€ ({OFFRE_LABEL[offre]})
+            </option>
+          ))}
         </select>
       </section>
 

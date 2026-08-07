@@ -6,6 +6,7 @@ import { StatCard, badgeStyle, STATUT_LABELS } from "@/components/ui";
 import EditionCabinetAdmin from "./edition-client";
 import PraticienPhotoAdmin from "./praticien-photo-admin";
 import { voirDashboardCabinet } from "../../actions";
+import { OFFRE_BADGE, type Offre } from "@/lib/offres";
 
 function initiales(nom: string) {
   return nom.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
@@ -66,6 +67,20 @@ export default async function AdminCabinetDetailPage({
   const minutesProjetees = joursEcoules > 0 ? Math.round((minutesConsommees / joursEcoules) * joursDansLeMois) : 0;
   const tauxProjete = minutesIncluses > 0 ? Math.round((minutesProjetees / minutesIncluses) * 100) : 0;
 
+  // Même logique que les minutes vocales, mais pour le forfait SMS — pour repérer
+  // un cabinet sur le point de dépasser AVANT que ses patients cessent de recevoir
+  // leurs rappels (le blocage automatique est silencieux côté patient).
+  const { count: smsConsommes } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("cabinet_id", id)
+    .eq("canal", "sms")
+    .eq("statut", "envoye")
+    .gte("envoye_le", debutMois.toISOString());
+  const smsForfait = cabinet.sms_forfait_mensuel ?? 250;
+  const smsProjetes = joursEcoules > 0 ? Math.round(((smsConsommes ?? 0) / joursEcoules) * joursDansLeMois) : 0;
+  const tauxSmsProjete = smsForfait > 0 ? Math.round((smsProjetes / smsForfait) * 100) : 0;
+
   const appels = (appelsData ?? []).map((a) => ({
     id: a.id,
     patientNom: (a.patients as unknown as { nom: string } | null)?.nom ?? "Numéro inconnu",
@@ -90,11 +105,12 @@ export default async function AdminCabinetDetailPage({
               {metier.label}
             </span>
             {cabinet.ville && <span className="text-slate-400">{cabinet.ville}</span>}
-            {cabinet.numero_twilio ? (
-              <span className="rounded-full px-2.5 py-0.5 font-semibold" style={{ background: "#DCE9FB", color: "#1D4ED8" }}>★ Premium</span>
-            ) : (
-              <span className="rounded-full px-2.5 py-0.5 font-semibold" style={{ background: "#FCE3E1", color: "#B42318" }}>Site seul</span>
-            )}
+            <span
+              className="rounded-full px-2.5 py-0.5 font-semibold"
+              style={{ background: OFFRE_BADGE[(cabinet.offre ?? "site") as Offre].bg, color: OFFRE_BADGE[(cabinet.offre ?? "site") as Offre].fg }}
+            >
+              {OFFRE_BADGE[(cabinet.offre ?? "site") as Offre].label}
+            </span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -204,6 +220,25 @@ export default async function AdminCabinetDetailPage({
                   </div>
                 )}
               </>
+            )}
+            <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+              <span className="text-slate-500">SMS envoyés ce mois-ci</span>
+              <span className="font-semibold text-slate-800">
+                {smsConsommes ?? 0} / {smsForfait}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Projection fin de mois</span>
+              <span className={`font-semibold ${tauxSmsProjete >= 100 ? "text-amber-700" : "text-slate-800"}`}>
+                ~{smsProjetes} SMS ({tauxSmsProjete}%)
+              </span>
+            </div>
+            {tauxSmsProjete >= 100 && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Ce cabinet va dépasser son forfait SMS ce mois-ci — au-delà, les rappels ne partent plus du
+                tout pour ses patients (blocage automatique et silencieux). Propose-lui un palier supérieur
+                avant que ça n&apos;arrive, plutôt qu&apos;après.
+              </div>
             )}
           </div>
         </div>

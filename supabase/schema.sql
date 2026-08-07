@@ -30,6 +30,7 @@ create table public.cabinets (
   sms_rappel_actif      boolean not null default true,
   sms_forfait_mensuel   integer not null default 250,
   statut_abonnement     text not null default 'essai',
+  offre                 text not null default 'site' check (offre in ('site', 'intermediaire', 'premium')),
   masquer_rdv_anciens   boolean not null default false,
   minutes_incluses      integer not null default 800,
   minutes_consommees    integer not null default 0,

@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { genererQrSvg } from "@/lib/qrcode";
+import { type Offre, prixOffre, offreNecessiteNumero } from "@/lib/offres";
 
 const COOKIE_VUE_ADMIN = "admin_vue_cabinet_id";
 
@@ -220,7 +221,7 @@ export async function creerCabinet(input: {
   delaiMinReservationHeures: number;
   delaiAnnulationHeures: number;
   accepteNouveauxPatients: boolean;
-  achterNumeroTwilio: boolean;
+  offre: Offre;
   smsForfaitMensuel: number;
 }) {
   await verifierSuperAdmin();
@@ -230,13 +231,16 @@ export async function creerCabinet(input: {
   if (!nom) return { error: "Le nom du cabinet est requis." };
   const emailAdmin = input.emailAdmin.trim().toLowerCase();
   if (!emailAdmin) return { error: "L'email de l'administrateur du cabinet est requis." };
+  if (!prixOffre(input.offre, input.smsForfaitMensuel)) {
+    return { error: "Palier SMS invalide pour cette offre." };
+  }
 
   let slug = slugify(nom);
   const { data: existant } = await admin.from("cabinets").select("id").eq("slug", slug).maybeSingle();
   if (existant) slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
 
   let numeroTwilio: string | null = null;
-  if (input.achterNumeroTwilio) {
+  if (offreNecessiteNumero(input.offre)) {
     if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
       return { error: "Twilio n'est pas configuré, impossible d'acheter un numéro." };
     }
@@ -304,6 +308,7 @@ export async function creerCabinet(input: {
       lien_avis_google: input.lienAvisGoogle.trim() || null,
       numero_twilio: numeroTwilio,
       statut_abonnement: "essai",
+      offre: input.offre,
       sms_forfait_mensuel: input.smsForfaitMensuel,
     })
     .select("id")
