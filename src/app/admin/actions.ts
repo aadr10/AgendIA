@@ -143,6 +143,43 @@ export async function retirerImageCabinetAdmin(cabinetId: string, type: "logo" |
   return { error: null };
 }
 
+export async function uploaderPhotoPraticienAdmin(cabinetId: string, praticienId: string, formData: FormData) {
+  await verifierSuperAdmin();
+  const admin = createAdminClient();
+
+  const fichier = formData.get("fichier") as File | null;
+  if (!fichier || fichier.size === 0) return { error: "Aucun fichier reçu." };
+  if (!fichier.type.startsWith("image/")) return { error: "Le fichier doit être une image." };
+  if (fichier.size > 5 * 1024 * 1024) return { error: "L'image dépasse la taille maximale (5 Mo)." };
+
+  const ext = fichier.name.split(".").pop() || "jpg";
+  const chemin = `${cabinetId}/praticien-${praticienId}-${Date.now()}.${ext}`;
+
+  const { error: eUpload } = await admin.storage
+    .from("cabinet-media")
+    .upload(chemin, fichier, { contentType: fichier.type, upsert: true });
+  if (eUpload) return { error: "Échec de l'envoi : " + eUpload.message };
+
+  const { data: pub } = admin.storage.from("cabinet-media").getPublicUrl(chemin);
+
+  const { error: eUpdate } = await admin.from("praticiens").update({ photo_url: pub.publicUrl }).eq("id", praticienId);
+  if (eUpdate) return { error: eUpdate.message };
+
+  revalidatePath(`/admin/cabinets/${cabinetId}`);
+  revalidatePath("/[slug]");
+  return { error: null, url: pub.publicUrl };
+}
+
+export async function retirerPhotoPraticienAdmin(cabinetId: string, praticienId: string) {
+  await verifierSuperAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("praticiens").update({ photo_url: null }).eq("id", praticienId);
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/cabinets/${cabinetId}`);
+  revalidatePath("/[slug]");
+  return { error: null };
+}
+
 export async function basculerStatutDemande(demandeId: string, statut: "nouveau" | "contacte" | "traite") {
   await verifierSuperAdmin();
   const admin = createAdminClient();
@@ -355,5 +392,5 @@ export async function creerCabinet(input: {
   await admin.from("users").insert({ id: userId, cabinet_id: cabinet.id, email: emailAdmin, role: "admin" });
 
   revalidatePath("/admin");
-  return { error: null, slug, numeroTwilio, lienEspacePraticien };
+  return { error: null, slug, cabinetId: cabinet.id, numeroTwilio, lienEspacePraticien };
 }

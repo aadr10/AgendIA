@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { metierConfig } from "@/lib/metiers";
 import { StatCard, badgeStyle, STATUT_LABELS } from "@/components/ui";
 import EditionCabinetAdmin from "./edition-client";
+import PraticienPhotoAdmin from "./praticien-photo-admin";
 import { voirDashboardCabinet } from "../../actions";
 
 function initiales(nom: string) {
@@ -42,7 +43,7 @@ export default async function AdminCabinetDetailPage({
     supabase.from("rendez_vous").select("*", { count: "exact", head: true }).eq("cabinet_id", id).gte("debut", todayStart.toISOString()).lt("debut", todayEnd.toISOString()).neq("statut", "annule"),
     supabase.from("appels").select("*", { count: "exact", head: true }).eq("cabinet_id", id).gte("debut", sevenDaysAgo.toISOString()),
     supabase.from("patients").select("*", { count: "exact", head: true }).eq("cabinet_id", id),
-    supabase.from("praticiens").select("id, nom, role, actif").eq("cabinet_id", id).order("nom"),
+    supabase.from("praticiens").select("id, nom, role, actif, photo_url").eq("cabinet_id", id).order("nom"),
     supabase.from("prestations").select("id, nom, duree_minutes, prix, actif").eq("cabinet_id", id).order("prix"),
     supabase.from("rendez_vous").select("debut, patients(nom), prestations(nom), praticiens(nom, couleur_agenda)").eq("cabinet_id", id).eq("statut", "confirme").gte("debut", now.toISOString()).order("debut", { ascending: true }).limit(8),
     supabase.from("appels").select("id, debut, resultat, patients(nom)").eq("cabinet_id", id).order("debut", { ascending: false }).limit(8),
@@ -232,11 +233,12 @@ export default async function AdminCabinetDetailPage({
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-3 font-medium text-slate-800">Praticiens</div>
           {(praticiens ?? []).length === 0 && <p className="text-sm text-slate-400">Aucun praticien.</p>}
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {(praticiens ?? []).map((p) => (
-              <li key={p.id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-700">{p.nom} <span className="text-slate-400">· {p.role}</span></span>
-                {!p.actif && <span className="text-xs text-slate-400">inactif</span>}
+              <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                <PraticienPhotoAdmin cabinetId={cabinet.id} praticienId={p.id} nom={p.nom} photoUrl={p.photo_url} />
+                <span className="min-w-0 flex-1 truncate text-slate-700">{p.nom} <span className="text-slate-400">· {p.role}</span></span>
+                {!p.actif && <span className="flex-shrink-0 text-xs text-slate-400">inactif</span>}
               </li>
             ))}
           </ul>
