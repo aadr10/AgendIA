@@ -7,10 +7,12 @@ import {
   creerRdv,
   deplacerRdv,
   annulerRdv,
+  marquerAbsentRdv,
   creerBlocage,
   supprimerBlocage,
   replanifierPatient,
 } from "./actions";
+import { badgeStyle, STATUT_LABELS } from "@/components/ui";
 
 type Praticien = { id: string; nom: string; couleur_agenda: string };
 type Prestation = { id: string; nom: string; duree_minutes: number; prix: number };
@@ -227,6 +229,18 @@ export default function AgendaClient({
     setErreur(null);
     startTransition(async () => {
       const res = await annulerRdv(r.id);
+      if (res.error) setErreur(res.error);
+      else {
+        setSel(null);
+        router.refresh();
+      }
+    });
+  }
+
+  function marquerAbsent(r: Rdv) {
+    setErreur(null);
+    startTransition(async () => {
+      const res = await marquerAbsentRdv(r.id);
       if (res.error) setErreur(res.error);
       else {
         setSel(null);
@@ -622,8 +636,8 @@ export default function AgendaClient({
             {sel.prestationNom} · {sel.dureeMinutes} min ·{" "}
             {praticiens.find((p) => p.id === sel.praticienId)?.nom}
           </span>
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "#E3F2EC", color: "#0E5E63" }}>
-            Confirmé
+          <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={badgeStyle(sel.statut)}>
+            {STATUT_LABELS[sel.statut] ?? sel.statut}
           </span>
           <span className="text-xs text-slate-400">Origine : {ORIGINE_LABEL[sel.origine] ?? sel.origine}</span>
           <span className="ml-auto flex gap-2">
@@ -634,9 +648,17 @@ export default function AgendaClient({
               Déplacer / modifier
             </button>
             <button
+              onClick={() => marquerAbsent(sel)}
+              disabled={isPending || sel.statut === "absent"}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs disabled:opacity-40"
+              style={{ color: "#9C3325" }}
+            >
+              Marquer absent
+            </button>
+            <button
               onClick={() => annuler(sel)}
-              disabled={isPending}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
+              disabled={isPending || sel.statut === "annule"}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs disabled:opacity-40"
               style={{ color: "#9C3325" }}
             >
               Annuler le RDV

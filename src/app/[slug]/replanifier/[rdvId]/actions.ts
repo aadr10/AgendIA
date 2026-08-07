@@ -75,33 +75,39 @@ export async function confirmerReplanification(input: {
     .single();
   if (!patient) return { error: "Fiche patient introuvable." };
 
-  const { error: er } = await supabase.from("rendez_vous").insert({
-    cabinet_id: input.cabinetId,
-    patient_id: input.patientId,
-    praticien_id: input.praticienId,
-    prestation_id: input.prestationId,
-    debut: debut.toISOString(),
-    fin: fin.toISOString(),
-    statut: "confirme",
-    origine: "site",
-  });
-  if (er) return { error: "Impossible de créer le rendez-vous : " + er.message };
+  const { data: rdvCree, error: er } = await supabase
+    .from("rendez_vous")
+    .insert({
+      cabinet_id: input.cabinetId,
+      patient_id: input.patientId,
+      praticien_id: input.praticienId,
+      prestation_id: input.prestationId,
+      debut: debut.toISOString(),
+      fin: fin.toISOString(),
+      statut: "confirme",
+      origine: "site",
+    })
+    .select("id")
+    .single();
+  if (er || !rdvCree) return { error: "Impossible de créer le rendez-vous : " + er?.message };
 
   const [{ data: cabinet }, { data: praticien }, { data: prestation }] = await Promise.all([
-    supabase.from("cabinets").select("nom, couleur_primaire, ia_prenom").eq("id", input.cabinetId).single(),
+    supabase.from("cabinets").select("slug, nom, couleur_primaire, ia_prenom").eq("id", input.cabinetId).single(),
     supabase.from("praticiens").select("nom").eq("id", input.praticienId).single(),
     supabase.from("prestations").select("nom").eq("id", input.prestationId).single(),
   ]);
 
-  if (cabinet && praticien && prestation && patient.email) {
+  if (cabinet && praticien && prestation) {
     await envoyerConfirmationRdv({
       cabinetId: input.cabinetId,
+      cabinetSlug: cabinet.slug,
+      rdvId: rdvCree.id,
       cabinetNom: cabinet.nom,
       couleurPrimaire: cabinet.couleur_primaire,
       iaPrenom: cabinet.ia_prenom,
       patientId: input.patientId,
       patientNom: patient.nom,
-      patientEmail: patient.email,
+      patientEmail: patient.email || undefined,
       patientTelephone: patient.telephone,
       prestationNom: prestation.nom,
       praticienNom: praticien.nom,

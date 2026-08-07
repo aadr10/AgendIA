@@ -8,23 +8,39 @@ const twilioClient =
     ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
     : null;
 
-// Tant qu'aucun domaine n'est vérifié sur Resend, l'envoi ne fonctionne
-// que vers l'adresse email du compte Resend lui-même (limite du mode test).
-const EXPEDITEUR = "Secrétaire IA <onboarding@resend.dev>";
+const EXPEDITEUR = "AgendIA <notifications@agendia-app.com>";
 
 type RdvPourNotification = {
   cabinetId: string;
+  cabinetSlug: string;
+  rdvId: string;
   cabinetNom: string;
   couleurPrimaire: string;
   iaPrenom: string;
   patientId: string;
   patientNom: string;
-  patientEmail: string;
+  patientEmail?: string;
   patientTelephone?: string;
   prestationNom: string;
   praticienNom: string;
   debut: Date;
 };
+
+// Lien court (/a/{id} redirige vers /{slug}/annuler/{id}) : garde le SMS sous
+// 160 caractères même avec un nom de cabinet long, pour rester à 1 seul
+// segment facturé au lieu de 2.
+function lienAnnulation(rdv: Pick<RdvPourNotification, "rdvId">) {
+  return `${process.env.NEXT_PUBLIC_APP_URL}/a/${rdv.rdvId}`;
+}
+
+function normaliserTelephoneBE(numero: string): string {
+  const nettoye = numero.replace(/[\s.\-()]/g, "");
+  if (nettoye.startsWith("+")) return nettoye;
+  if (nettoye.startsWith("0032")) return "+32" + nettoye.slice(4);
+  if (nettoye.startsWith("00")) return "+" + nettoye.slice(2);
+  if (nettoye.startsWith("0")) return "+32" + nettoye.slice(1);
+  return nettoye;
+}
 
 function formatDateHeure(d: Date) {
   const date = d.toLocaleDateString("fr-BE", { weekday: "long", day: "numeric", month: "long" });
@@ -32,10 +48,27 @@ function formatDateHeure(d: Date) {
   return `${date} à ${heure}`;
 }
 
+// Format court, sans accent, pour les SMS : reste dans l'alphabet GSM-7 (160
+// caractères par SMS) au lieu de basculer en Unicode (70 caractères) à cause
+// d'un accent, et limite le nombre de caractères facturés.
+function formatDateHeureSms(d: Date) {
+  const jour = d.toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" });
+  const heure = d.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
+  return `${jour} ${heure}`;
+}
+
+// Un seul caractère accentué dans le SMS fait basculer tout le message en
+// UCS-2 (70 caractères/segment au lieu de 160), doublant le coût Twilio même
+// pour un message court. On désaccentue les textes dynamiques (nom de cabinet)
+// pour garantir un SMS à 1 segment quel que soit le nom du client.
+function versGsm7(texte: string): string {
+  return texte.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
 async function journaliser(input: {
   cabinetId: string;
   patientId: string;
-  type: "confirmation" | "rappel" | "replanification";
+  type: "confirmation" | "rappel" | "replanification" | "avis";
   canal: "email" | "sms";
   statut: "envoye" | "echec";
 }) {
@@ -53,7 +86,7 @@ async function journaliser(input: {
 async function envoyerEmail(input: {
   cabinetId: string;
   patientId: string;
-  type: "confirmation" | "rappel" | "replanification";
+  type: "confirmation" | "rappel" | "replanification" | "avis";
   to: string;
   subject: string;
   html: string;
@@ -73,10 +106,30 @@ async function envoyerEmail(input: {
   }
 }
 
+async function forfaitSmsDepasse(cabinetId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data: cabinet } = await admin.from("cabinets").select("sms_forfait_mensuel").eq("id", cabinetId).single();
+  const forfait = cabinet?.sms_forfait_mensuel ?? 250;
+
+  const debutMois = new Date();
+  debutMois.setDate(1);
+  debutMois.setHours(0, 0, 0, 0);
+
+  const { count } = await admin
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("cabinet_id", cabinetId)
+    .eq("canal", "sms")
+    .eq("statut", "envoye")
+    .gte("envoye_le", debutMois.toISOString());
+
+  return (count ?? 0) >= forfait;
+}
+
 async function envoyerSms(input: {
   cabinetId: string;
   patientId: string;
-  type: "confirmation" | "rappel" | "replanification";
+  type: "confirmation" | "rappel" | "replanification" | "avis";
   to: string;
   message: string;
 }) {
@@ -84,10 +137,15 @@ async function envoyerSms(input: {
     await journaliser({ cabinetId: input.cabinetId, patientId: input.patientId, type: input.type, canal: "sms", statut: "echec" });
     return { error: "Twilio n'est pas configuré." };
   }
+  // Forfait SMS mensuel du cabinet atteint : on ne dépasse jamais son inclus
+  // (protège la marge, pas de frais Twilio en plus de ce qui a été facturé au client).
+  if (await forfaitSmsDepasse(input.cabinetId)) {
+    return { error: null, forfaitDepasse: true };
+  }
   try {
     await twilioClient.messages.create({
       from: process.env.TWILIO_PHONE_NUMBER,
-      to: input.to,
+      to: normaliserTelephoneBE(input.to),
       body: input.message,
     });
     await journaliser({ cabinetId: input.cabinetId, patientId: input.patientId, type: input.type, canal: "sms", statut: "envoye" });
@@ -99,6 +157,7 @@ async function envoyerSms(input: {
 }
 
 export async function envoyerConfirmationRdv(rdv: RdvPourNotification) {
+  const lien = lienAnnulation(rdv);
   const html = `
     <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
       <div style="background:${rdv.couleurPrimaire}; color:#fff; padding:20px; border-radius:12px 12px 0 0;">
@@ -113,37 +172,33 @@ export async function envoyerConfirmationRdv(rdv: RdvPourNotification) {
           <p style="margin:0;">Avec ${rdv.praticienNom}</p>
         </div>
         <p style="font-size:13px; color:#64748B;">
-          Vous recevrez un rappel avant votre rendez-vous. Besoin de changer ou d'annuler ?
-          Appelez le cabinet, ${rdv.iaPrenom} s'en occupe 24h/24. Annulation gratuite jusqu'à 24h avant.
+          Vous recevrez un rappel par SMS avant votre rendez-vous. Besoin de changer ? Appelez le cabinet,
+          ${rdv.iaPrenom} s'en occupe 24h/24. Annulation gratuite jusqu'à 24h avant —
+          <a href="${lien}" style="color:${rdv.couleurPrimaire};">annuler en un clic</a>.
         </p>
       </div>
     </div>
   `;
 
-  const resultats = await Promise.all([
-    envoyerEmail({
-      cabinetId: rdv.cabinetId,
-      patientId: rdv.patientId,
-      type: "confirmation",
-      to: rdv.patientEmail,
-      subject: `Confirmation de votre rendez-vous — ${rdv.cabinetNom}`,
-      html,
-    }),
-    rdv.patientTelephone
-      ? envoyerSms({
-          cabinetId: rdv.cabinetId,
-          patientId: rdv.patientId,
-          type: "confirmation",
-          to: rdv.patientTelephone,
-          message: `${rdv.cabinetNom} : RDV confirmé - ${rdv.prestationNom} le ${formatDateHeure(rdv.debut)} avec ${rdv.praticienNom}. Annulation gratuite jusqu'à 24h avant.`,
-        })
-      : Promise.resolve({ error: null }),
-  ]);
+  // Pas de SMS de confirmation : le patient voit déjà la confirmation à l'écran juste après
+  // sa réservation, et reçoit un email. Seul le rappel SMS la veille (envoyerRappelRdv) est envoyé,
+  // pour éviter un coût Twilio inutile sur chaque réservation.
+  const resultat = rdv.patientEmail
+    ? await envoyerEmail({
+        cabinetId: rdv.cabinetId,
+        patientId: rdv.patientId,
+        type: "confirmation",
+        to: rdv.patientEmail,
+        subject: `Confirmation de votre rendez-vous — ${rdv.cabinetNom}`,
+        html,
+      })
+    : { error: null };
 
-  return { error: resultats[0].error };
+  return { error: resultat.error };
 }
 
 export async function envoyerRappelRdv(rdv: RdvPourNotification) {
+  const lien = lienAnnulation(rdv);
   const html = `
     <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
       <div style="background:${rdv.couleurPrimaire}; color:#fff; padding:20px; border-radius:12px 12px 0 0;">
@@ -158,28 +213,31 @@ export async function envoyerRappelRdv(rdv: RdvPourNotification) {
           <p style="margin:0;">Avec ${rdv.praticienNom}</p>
         </div>
         <p style="font-size:13px; color:#64748B;">
-          À bientôt ! Besoin de changer ou d'annuler ? Appelez le cabinet, ${rdv.iaPrenom} s'en occupe 24h/24.
+          À bientôt ! Besoin de changer ? Appelez le cabinet, ${rdv.iaPrenom} s'en occupe 24h/24, ou
+          <a href="${lien}" style="color:${rdv.couleurPrimaire};">annulez en un clic</a>.
         </p>
       </div>
     </div>
   `;
 
   return Promise.all([
-    envoyerEmail({
-      cabinetId: rdv.cabinetId,
-      patientId: rdv.patientId,
-      type: "rappel",
-      to: rdv.patientEmail,
-      subject: `Rappel : rendez-vous demain — ${rdv.cabinetNom}`,
-      html,
-    }),
-    rdv.patientTelephone
+    rdv.patientEmail
+      ? envoyerEmail({
+          cabinetId: rdv.cabinetId,
+          patientId: rdv.patientId,
+          type: "rappel",
+          to: rdv.patientEmail,
+          subject: `Rappel : rendez-vous demain — ${rdv.cabinetNom}`,
+          html,
+        })
+      : Promise.resolve({ error: null }),
+    rdv.patientTelephone && !rdv.patientEmail
       ? envoyerSms({
           cabinetId: rdv.cabinetId,
           patientId: rdv.patientId,
           type: "rappel",
           to: rdv.patientTelephone,
-          message: `${rdv.cabinetNom} : rappel de votre RDV demain ${formatDateHeure(rdv.debut)} (${rdv.prestationNom}, ${rdv.praticienNom}).`,
+          message: `${versGsm7(rdv.cabinetNom)}: RDV demain ${formatDateHeureSms(rdv.debut)}. Annuler: ${lien}`,
         })
       : Promise.resolve({ error: null }),
   ]);
@@ -191,7 +249,7 @@ export async function envoyerLienReplanification(input: {
   couleurPrimaire: string;
   patientId: string;
   patientNom: string;
-  patientEmail: string;
+  patientEmail?: string;
   patientTelephone?: string;
   prestationNom: string;
   ancienDebut: Date;
@@ -219,22 +277,61 @@ export async function envoyerLienReplanification(input: {
   `;
 
   return Promise.all([
-    envoyerEmail({
-      cabinetId: input.cabinetId,
-      patientId: input.patientId,
-      type: "replanification",
-      to: input.patientEmail,
-      subject: `Votre rendez-vous a été déplacé — ${input.cabinetNom}`,
-      html,
-    }),
-    input.patientTelephone
+    input.patientEmail
+      ? envoyerEmail({
+          cabinetId: input.cabinetId,
+          patientId: input.patientId,
+          type: "replanification",
+          to: input.patientEmail,
+          subject: `Votre rendez-vous a été déplacé — ${input.cabinetNom}`,
+          html,
+        })
+      : Promise.resolve({ error: null }),
+    input.patientTelephone && !input.patientEmail
       ? envoyerSms({
           cabinetId: input.cabinetId,
           patientId: input.patientId,
           type: "replanification",
           to: input.patientTelephone,
-          message: `${input.cabinetNom} : votre RDV du ${formatDateHeure(input.ancienDebut)} a été annulé (fermeture exceptionnelle). Choisissez un nouveau créneau ici : ${input.lienUrl}`,
+          message: `${versGsm7(input.cabinetNom)}: votre RDV du ${formatDateHeureSms(input.ancienDebut)} est annule. Nouveau creneau: ${input.lienUrl}`,
         })
       : Promise.resolve({ error: null }),
   ]);
+}
+
+export async function envoyerDemandeAvis(input: {
+  cabinetId: string;
+  cabinetNom: string;
+  couleurPrimaire: string;
+  lienAvisGoogle: string;
+  patientId: string;
+  patientNom: string;
+  patientEmail: string;
+}) {
+  const html = `
+    <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
+      <div style="background:${input.couleurPrimaire}; color:#fff; padding:20px; border-radius:12px 12px 0 0;">
+        <h1 style="margin:0; font-size:18px;">${input.cabinetNom}</h1>
+      </div>
+      <div style="border:1px solid #E2E8F0; border-top:none; padding:24px; border-radius:0 0 12px 12px;">
+        <p>Bonjour ${input.patientNom.split(" ")[0]},</p>
+        <p>Merci pour votre visite chez ${input.cabinetNom} ! Si vous êtes satisfait(e), un petit avis nous aiderait énormément :</p>
+        <p style="text-align:center; margin:24px 0;">
+          <a href="${input.lienAvisGoogle}" style="background:${input.couleurPrimaire}; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:600;">
+            Laisser un avis Google
+          </a>
+        </p>
+        <p style="font-size:13px; color:#64748B;">Ça prend 30 secondes et ça compte beaucoup pour nous. Merci !</p>
+      </div>
+    </div>
+  `;
+
+  return envoyerEmail({
+    cabinetId: input.cabinetId,
+    patientId: input.patientId,
+    type: "avis",
+    to: input.patientEmail,
+    subject: `Merci pour votre visite — ${input.cabinetNom}`,
+    html,
+  });
 }

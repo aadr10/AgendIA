@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Secrétaire IA",
-  description: "Gérez votre agenda, vos appels et votre secrétaire IA.",
+  title: "AgendIA — Secrétaire IA pour professionnels sur rendez-vous",
+  description:
+    "AgendIA répond au téléphone, prend vos rendez-vous et gère votre secrétariat 24h/24. Pour kinés, médecins, dentistes, esthéticiennes et tous les métiers sur rendez-vous.",
   manifest: "/manifest.json",
   icons: {
     icon: [

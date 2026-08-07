@@ -15,9 +15,18 @@ type Cabinet = {
   couleurDouce: string;
   logoUrl: string | null;
   photoHeroUrl: string | null;
+  lienAvisGoogle: string;
 };
 
-export default function SiteInternetClient({ cabinet }: { cabinet: Cabinet }) {
+export default function SiteInternetClient({
+  cabinet,
+  lienSite,
+  qrSvg,
+}: {
+  cabinet: Cabinet;
+  lienSite: string;
+  qrSvg: string;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -32,6 +41,7 @@ export default function SiteInternetClient({ cabinet }: { cabinet: Cabinet }) {
   const [horairesTexte, setHorairesTexte] = useState(cabinet.horairesTexte);
   const [couleurPrimaire, setCouleurPrimaire] = useState(cabinet.couleurPrimaire);
   const [couleurDouce, setCouleurDouce] = useState(cabinet.couleurDouce);
+  const [lienAvisGoogle, setLienAvisGoogle] = useState(cabinet.lienAvisGoogle);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +58,7 @@ export default function SiteInternetClient({ cabinet }: { cabinet: Cabinet }) {
         horairesTexte,
         couleurPrimaire,
         couleurDouce,
+        lienAvisGoogle,
       });
       if (res.error) setErreur(res.error);
       else {
@@ -95,6 +106,28 @@ export default function SiteInternetClient({ cabinet }: { cabinet: Cabinet }) {
         — tout changement ci-dessous y est visible immédiatement, sans rien publier.
       </div>
 
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white p-5 text-center lg:col-span-2 sm:flex-row sm:text-left">
+        <div
+          className="h-28 w-28 flex-shrink-0 [&_svg]:h-full [&_svg]:w-full"
+          dangerouslySetInnerHTML={{ __html: qrSvg }}
+        />
+        <div className="flex-1">
+          <div className="font-medium text-slate-800">QR code de votre site</div>
+          <p className="mt-1 text-xs text-slate-500">
+            À coller sur une affiche, votre comptoir ou votre carte de visite : vos patients scannent et réservent directement.
+          </p>
+          <p className="mt-1 break-all text-[11px] text-slate-400">{lienSite}</p>
+          <a
+            href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrSvg)}`}
+            download={`qr-code-${cabinet.slug}.svg`}
+            className="mt-2 inline-block text-xs font-medium underline"
+            style={{ color: couleurPrimaire }}
+          >
+            Télécharger le QR code
+          </a>
+        </div>
+      </div>
+
       <div className="space-y-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-4 font-medium text-slate-800">Identité et coordonnées</div>
@@ -108,6 +141,20 @@ export default function SiteInternetClient({ cabinet }: { cabinet: Cabinet }) {
           <input value={telephoneAffiche} onChange={(e) => setTelephoneAffiche(e.target.value)} className={inputCls + " mb-3"} />
           <label className="mb-1 block text-xs font-medium text-slate-500">Horaires (affichés sur le site)</label>
           <input value={horairesTexte} onChange={(e) => setHorairesTexte(e.target.value)} className={inputCls} />
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
+          <div className="mb-1 font-medium text-slate-800">Avis Google</div>
+          <p className="mb-3 text-xs text-slate-500">
+            Une fois ta fiche Google Business créée (gratuit), colle ici ton lien d&apos;avis — chaque patient reçoit
+            automatiquement une demande d&apos;avis après son rendez-vous.
+          </p>
+          <input
+            value={lienAvisGoogle}
+            onChange={(e) => setLienAvisGoogle(e.target.value)}
+            className={inputCls}
+            placeholder="https://g.page/r/.../review"
+          />
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">

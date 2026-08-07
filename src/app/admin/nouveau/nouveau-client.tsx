@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { creerCabinet, qrCodeCabinet } from "../actions";
+import { creerCabinet, qrCodeCabinet, uploaderImageCabinetAdmin, uploaderPhotoPraticienAdmin } from "../actions";
 import { METIERS, metierConfig } from "@/lib/metiers";
 import { type Offre, OFFRE_LABEL, OFFRE_DESCRIPTION, PALIERS_SMS } from "@/lib/offres";
 
@@ -42,7 +42,10 @@ export default function NouveauCabinetClient() {
   const [emailAdmin, setEmailAdmin] = useState("");
   const [lienAvisGoogle, setLienAvisGoogle] = useState("");
 
-  const [praticiens, setPraticiens] = useState([{ nom: "", role: "" }]);
+  const [praticiens, setPraticiens] = useState<{ nom: string; role: string; photo: File | null }[]>([{ nom: "", role: "", photo: null }]);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [envoiPhotos, setEnvoiPhotos] = useState(false);
   const [prestations, setPrestations] = useState(metierConfig("kine").prestations);
   const [faq, setFaq] = useState([{ question: "", reponse: "" }]);
 
@@ -87,7 +90,7 @@ export default function NouveauCabinetClient() {
         iaTon,
         iaMessageAccueil: metierConfig(metier).accueil(nom, iaPrenom),
         horairesTexte,
-        praticiens,
+        praticiens: praticiens.map((p) => ({ nom: p.nom, role: p.role })),
         prestations,
         faq,
         delaiMinReservationHeures,
@@ -96,11 +99,43 @@ export default function NouveauCabinetClient() {
         offre,
         smsForfaitMensuel,
       });
-      if (res.error) setErreur(res.error);
-      else {
-        setSucces({ slug: res.slug!, cabinetId: res.cabinetId, numeroTwilio: res.numeroTwilio, lienEspacePraticien: res.lienEspacePraticien });
-        router.refresh();
+      if (res.error) {
+        setErreur(res.error);
+        return;
       }
+
+      // Les photos ne peuvent être envoyées qu'une fois le cabinet (et ses
+      // praticiens) réellement créés en base — on les envoie juste après,
+      // avant d'afficher l'écran de succès.
+      if (res.cabinetId) {
+        setEnvoiPhotos(true);
+        if (logoFile) {
+          const fd = new FormData();
+          fd.append("type", "logo");
+          fd.append("fichier", logoFile);
+          await uploaderImageCabinetAdmin(res.cabinetId, fd);
+        }
+        if (photoFile) {
+          const fd = new FormData();
+          fd.append("type", "photo");
+          fd.append("fichier", photoFile);
+          await uploaderImageCabinetAdmin(res.cabinetId, fd);
+        }
+        const praticiensAvecId = praticiens.filter((p) => p.nom.trim());
+        for (let i = 0; i < praticiensAvecId.length; i++) {
+          const photo = praticiensAvecId[i].photo;
+          const praticienId = res.praticiens?.[i]?.id;
+          if (photo && praticienId) {
+            const fd = new FormData();
+            fd.append("fichier", photo);
+            await uploaderPhotoPraticienAdmin(res.cabinetId, praticienId, fd);
+          }
+        }
+        setEnvoiPhotos(false);
+      }
+
+      setSucces({ slug: res.slug!, cabinetId: res.cabinetId, numeroTwilio: res.numeroTwilio, lienEspacePraticien: res.lienEspacePraticien });
+      router.refresh();
     });
   }
 
@@ -233,6 +268,24 @@ export default function NouveauCabinetClient() {
             <label className="mb-1 block text-xs font-medium text-slate-500">Couleur douce</label>
             <input type="color" value={couleurDouce} onChange={(e) => setCouleurDouce(e.target.value)} className="h-9 w-20 rounded-lg border border-slate-200" />
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-500">Logo (facultatif)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-500">Photo de fond du site (facultatif)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs"
+            />
+          </div>
         </div>
       </section>
 
@@ -240,23 +293,29 @@ export default function NouveauCabinetClient() {
         <h2 className="mb-4 font-medium text-slate-800">2. Équipe</h2>
         <div className="space-y-2">
           {praticiens.map((p, i) => (
-            <div key={i} className="flex gap-2">
+            <div key={i} className="flex flex-wrap items-center gap-2">
               <input
                 placeholder="Nom du praticien"
                 value={p.nom}
                 onChange={(e) => setPraticiens(praticiens.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))}
-                className={inputCls}
+                className={inputClsFlex + " min-w-0 flex-1"}
               />
               <input
                 placeholder="Rôle"
                 value={p.role}
                 onChange={(e) => setPraticiens(praticiens.map((x, j) => (j === i ? { ...x, role: e.target.value } : x)))}
-                className={inputCls}
+                className={inputClsFlex + " min-w-0 flex-1"}
+              />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPraticiens(praticiens.map((x, j) => (j === i ? { ...x, photo: e.target.files?.[0] ?? null } : x)))}
+                className="w-40 flex-shrink-0 text-xs text-slate-500 file:mr-1 file:rounded-lg file:border file:border-slate-200 file:bg-white file:px-2 file:py-1.5 file:text-xs"
               />
               <button onClick={() => setPraticiens(praticiens.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-600">✕</button>
             </div>
           ))}
-          <button onClick={() => setPraticiens([...praticiens, { nom: "", role: "" }])} className="text-xs text-slate-500 hover:underline">
+          <button onClick={() => setPraticiens([...praticiens, { nom: "", role: "", photo: null }])} className="text-xs text-slate-500 hover:underline">
             + Ajouter un praticien
           </button>
         </div>
@@ -414,7 +473,7 @@ export default function NouveauCabinetClient() {
         className="rounded-lg px-6 py-3 text-sm font-semibold text-white disabled:opacity-40"
         style={{ background: "#0E5E63" }}
       >
-        {isPending ? "Création en cours…" : "Créer le cabinet"}
+        {envoiPhotos ? "Envoi des photos…" : isPending ? "Création en cours…" : "Créer le cabinet"}
       </button>
     </div>
   );

@@ -397,5 +397,12 @@ export async function creerCabinet(input: {
   await admin.from("users").insert({ id: userId, cabinet_id: cabinet.id, email: emailAdmin, role: "admin" });
 
   revalidatePath("/admin");
-  return { error: null, slug, cabinetId: cabinet.id, numeroTwilio, lienEspacePraticien };
+  return {
+    error: null,
+    slug,
+    cabinetId: cabinet.id,
+    numeroTwilio,
+    lienEspacePraticien,
+    praticiens: praticiensACreer.map((p, i) => ({ id: praticienIds[i], nom: p.nom.trim() })).filter((p) => p.id),
+  };
 }

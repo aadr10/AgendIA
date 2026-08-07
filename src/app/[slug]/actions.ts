@@ -1,8 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { creneauxDisponiblesJour } from "@/lib/disponibilites";
 import { envoyerConfirmationRdv } from "@/lib/notifications";
+import { limiteAtteinte } from "@/lib/rate-limit";
 
 export async function creneauxPourJour(input: {
   cabinetId: string;
@@ -42,13 +44,24 @@ export async function reserverRdv(input: {
   telephone: string;
   email: string;
 }) {
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "inconnu";
+  if (limiteAtteinte(`reservation:${ip}`, 5, 10 * 60 * 1000)) {
+    return { error: "Trop de tentatives de réservation, réessayez dans quelques minutes." };
+  }
+
   const supabase = createAdminClient();
 
   const nom = input.nom.trim();
   const telephone = input.telephone.trim();
   const email = input.email.trim();
-  if (!nom || !telephone || !email) {
-    return { error: "Merci de renseigner votre nom, téléphone et email." };
+  if (!nom || !telephone) {
+    return { error: "Merci de renseigner votre nom et votre téléphone." };
+  }
+  if (!/^[+0-9\s.\-()]{6,20}$/.test(telephone)) {
+    return { error: "Le numéro de téléphone ne semble pas valide." };
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "L'adresse email ne semble pas valide." };
   }
 
   const { data: regles } = await supabase
@@ -95,6 +108,7 @@ export async function reserverRdv(input: {
     .select("id")
     .eq("cabinet_id", input.cabinetId)
     .eq("telephone", telephone)
+    .eq("nom", nom)
     .maybeSingle();
 
   if (!patientExistant && regles?.accepte_nouveaux_patients === false) {
@@ -104,27 +118,31 @@ export async function reserverRdv(input: {
   const { data: patient, error: ep } = await supabase
     .from("patients")
     .upsert(
-      { cabinet_id: input.cabinetId, nom, telephone, email },
-      { onConflict: "cabinet_id,telephone" }
+      { cabinet_id: input.cabinetId, nom, telephone, email: email || null },
+      { onConflict: "cabinet_id,telephone,nom" }
     )
     .select("id")
     .single();
   if (ep || !patient) return { error: "Impossible d'enregistrer votre fiche patient." };
 
-  const { error: er } = await supabase.from("rendez_vous").insert({
-    cabinet_id: input.cabinetId,
-    patient_id: patient.id,
-    praticien_id: input.praticienId,
-    prestation_id: input.prestationId,
-    debut: debut.toISOString(),
-    fin: fin.toISOString(),
-    statut: "confirme",
-    origine: "site",
-  });
-  if (er) return { error: "Impossible de créer le rendez-vous : " + er.message };
+  const { data: rdvCree, error: er } = await supabase
+    .from("rendez_vous")
+    .insert({
+      cabinet_id: input.cabinetId,
+      patient_id: patient.id,
+      praticien_id: input.praticienId,
+      prestation_id: input.prestationId,
+      debut: debut.toISOString(),
+      fin: fin.toISOString(),
+      statut: "confirme",
+      origine: "site",
+    })
+    .select("id")
+    .single();
+  if (er || !rdvCree) return { error: "Impossible de créer le rendez-vous : " + er?.message };
 
   const [{ data: cabinet }, { data: praticien }, { data: prestation }] = await Promise.all([
-    supabase.from("cabinets").select("nom, couleur_primaire, ia_prenom").eq("id", input.cabinetId).single(),
+    supabase.from("cabinets").select("slug, nom, couleur_primaire, ia_prenom").eq("id", input.cabinetId).single(),
     supabase.from("praticiens").select("nom").eq("id", input.praticienId).single(),
     supabase.from("prestations").select("nom").eq("id", input.prestationId).single(),
   ]);
@@ -132,12 +150,14 @@ export async function reserverRdv(input: {
   if (cabinet && praticien && prestation) {
     await envoyerConfirmationRdv({
       cabinetId: input.cabinetId,
+      cabinetSlug: cabinet.slug,
+      rdvId: rdvCree.id,
       cabinetNom: cabinet.nom,
       couleurPrimaire: cabinet.couleur_primaire,
       iaPrenom: cabinet.ia_prenom,
       patientId: patient.id,
       patientNom: nom,
-      patientEmail: email,
+      patientEmail: email || undefined,
       patientTelephone: telephone,
       prestationNom: prestation.nom,
       praticienNom: praticien.nom,

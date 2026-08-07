@@ -1,6 +1,8 @@
 export type CabinetContexteChat = {
   id: string;
+  slug: string;
   nom: string;
+  couleurPrimaire: string;
   metier: string;
   ville: string;
   adresse: string;

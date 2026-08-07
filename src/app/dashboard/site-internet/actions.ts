@@ -16,6 +16,7 @@ export async function majApparence(input: {
   horairesTexte: string;
   couleurPrimaire: string;
   couleurDouce: string;
+  lienAvisGoogle: string;
 }) {
   const { supabase, cabinet } = await getSessionContext();
   const { error } = await supabase
@@ -28,6 +29,7 @@ export async function majApparence(input: {
       horaires_texte: input.horairesTexte,
       couleur_primaire: input.couleurPrimaire,
       couleur_douce: input.couleurDouce,
+      lien_avis_google: input.lienAvisGoogle.trim() || null,
     })
     .eq("id", cabinet.id);
   if (error) return { error: error.message };
@@ -48,6 +50,7 @@ export async function uploaderImage(formData: FormData) {
   const fichier = formData.get("fichier") as File | null;
   if (!fichier || fichier.size === 0) return { error: "Aucun fichier reçu." };
   if (!fichier.type.startsWith("image/")) return { error: "Le fichier doit être une image." };
+  if (fichier.size > 5 * 1024 * 1024) return { error: "L'image dépasse la taille maximale (5 Mo)." };
 
   const colonne = CHAMP_VERS_COLONNE[type];
   if (!colonne) return { error: "Type d'image inconnu." };

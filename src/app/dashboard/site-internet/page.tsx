@@ -1,9 +1,13 @@
 import { getSessionContext } from "@/lib/cabinet";
 import PageHeader from "@/components/page-header";
 import SiteInternetClient from "./site-internet-client";
+import { genererQrSvg } from "@/lib/qrcode";
 
 export default async function SiteInternetPage() {
   const { cabinet } = await getSessionContext();
+
+  const lienSite = `${process.env.NEXT_PUBLIC_APP_URL}/${cabinet.slug}`;
+  const qrSvg = await genererQrSvg(lienSite);
 
   return (
     <div className="space-y-4">
@@ -20,7 +24,10 @@ export default async function SiteInternetPage() {
           couleurDouce: cabinet.couleur_douce,
           logoUrl: cabinet.logo_url,
           photoHeroUrl: cabinet.photo_hero_url,
+          lienAvisGoogle: cabinet.lien_avis_google ?? "",
         }}
+        lienSite={lienSite}
+        qrSvg={qrSvg}
       />
     </div>
   );

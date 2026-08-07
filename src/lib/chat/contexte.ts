@@ -3,7 +3,9 @@ import type { ContexteChat } from "./types";
 
 async function construireDepuisCabinet(cabinet: {
   id: string;
+  slug: string;
   nom: string;
+  couleur_primaire: string;
   metier: string;
   ville: string | null;
   adresse: string | null;
@@ -26,7 +28,9 @@ async function construireDepuisCabinet(cabinet: {
   return {
     cabinet: {
       id: cabinet.id,
+      slug: cabinet.slug,
       nom: cabinet.nom,
+      couleurPrimaire: cabinet.couleur_primaire,
       metier: cabinet.metier,
       ville: cabinet.ville ?? "",
       adresse: cabinet.adresse ?? "",

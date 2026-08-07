@@ -9,7 +9,7 @@ export default async function PraticiensPage() {
 
   const { data: praticiensData } = await supabase
     .from("praticiens")
-    .select("id, nom, role, couleur_agenda, actif")
+    .select("id, nom, role, couleur_agenda, photo_url, actif")
     .eq("cabinet_id", cabinet.id)
     .eq("actif", true)
     .order("nom");
@@ -24,6 +24,7 @@ export default async function PraticiensPage() {
     nom: p.nom,
     role: p.role ?? "",
     couleurAgenda: p.couleur_agenda,
+    photoUrl: p.photo_url,
     horaires: (horaires ?? [])
       .filter((h) => h.praticien_id === p.id)
       .sort((a, b) => a.jour_semaine - b.jour_semaine)

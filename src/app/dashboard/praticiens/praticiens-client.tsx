@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ajouterPraticien, renommerPraticien, desactiverPraticien } from "./actions";
+import { ajouterPraticien, renommerPraticien, desactiverPraticien, uploaderPhotoPraticien, retirerPhotoPraticien } from "./actions";
 
 type Praticien = {
   id: string;
   nom: string;
   role: string;
   couleurAgenda: string;
+  photoUrl: string | null;
   horaires: string[];
 };
 
@@ -22,6 +23,31 @@ export default function PraticiensClient({ praticiens }: { praticiens: Praticien
   const [erreur, setErreur] = useState<string | null>(null);
   const [ajout, setAjout] = useState<{ nom: string; role: string } | null>(null);
   const [renomme, setRenomme] = useState<{ id: string; nom: string } | null>(null);
+  const [envoiPhoto, setEnvoiPhoto] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  async function surChangementPhoto(e: React.ChangeEvent<HTMLInputElement>, praticienId: string) {
+    const fichier = e.target.files?.[0];
+    if (!fichier) return;
+    setErreur(null);
+    setEnvoiPhoto(praticienId);
+    const formData = new FormData();
+    formData.set("fichier", fichier);
+    const res = await uploaderPhotoPraticien(praticienId, formData);
+    setEnvoiPhoto(null);
+    if (res.error) setErreur(res.error);
+    else router.refresh();
+    e.target.value = "";
+  }
+
+  function retirerPhoto(praticienId: string) {
+    setErreur(null);
+    startTransition(async () => {
+      const res = await retirerPhotoPraticien(praticienId);
+      if (res.error) setErreur(res.error);
+      else router.refresh();
+    });
+  }
 
   function creer() {
     if (!ajout?.nom.trim()) return;
@@ -65,12 +91,30 @@ export default function PraticiensClient({ praticiens }: { praticiens: Praticien
         {praticiens.map((p) => (
           <div key={p.id} className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="flex items-center gap-3">
-              <span
-                className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold text-white"
+              <button
+                onClick={() => fileInputRefs.current[p.id]?.click()}
+                disabled={envoiPhoto === p.id}
+                className="group relative flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white"
                 style={{ background: p.couleurAgenda }}
+                title="Changer la photo"
               >
-                {initiales(p.nom)}
-              </span>
+                {p.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.photoUrl} alt={p.nom} className="h-full w-full object-cover" />
+                ) : (
+                  initiales(p.nom)
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] opacity-0 transition-opacity group-hover:opacity-100">
+                  {envoiPhoto === p.id ? "…" : "📷"}
+                </span>
+              </button>
+              <input
+                ref={(el) => { fileInputRefs.current[p.id] = el; }}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => surChangementPhoto(e, p.id)}
+              />
               <div className="flex-1">
                 {renomme?.id === p.id ? (
                   <div className="flex gap-2">
@@ -101,6 +145,11 @@ export default function PraticiensClient({ praticiens }: { praticiens: Praticien
                 {renomme?.id !== p.id && (
                   <button onClick={() => setRenomme({ id: p.id, nom: p.nom })} className="text-slate-500 hover:text-slate-800">
                     Renommer
+                  </button>
+                )}
+                {p.photoUrl && (
+                  <button onClick={() => retirerPhoto(p.id)} disabled={isPending} className="text-slate-500 hover:text-slate-800">
+                    Retirer la photo
                   </button>
                 )}
                 <button onClick={() => desactiver(p.id)} disabled={isPending} className="text-slate-500 hover:text-red-600">
