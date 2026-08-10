@@ -27,9 +27,9 @@ export const OFFRE_DESCRIPTION: Record<Offre, string> = {
 export const PALIERS_SMS: Record<Offre, { sms: number; prix: number }[]> = {
   site: [
     { sms: 0, prix: 64.99 },
-    { sms: 250, prix: 94.99 },
-    { sms: 500, prix: 119.99 },
-    { sms: 1000, prix: 174.99 },
+    { sms: 250, prix: 89.99 },
+    { sms: 500, prix: 112.99 },
+    { sms: 1000, prix: 162.99 },
   ],
   intermediaire: [
     { sms: 250, prix: 119.99 },
