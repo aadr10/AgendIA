@@ -26,7 +26,7 @@ export const PALIERS_SMS: Record<Offre, { sms: number; prix: number }[]> = {
     { sms: 0, prix: 64.99 },
     { sms: 250, prix: 94.99 },
     { sms: 500, prix: 119.99 },
-    { sms: 1000, prix: 174.99 },
+    { sms: 1000, prix: 169.99 },
   ],
   premium: [
     { sms: 250, prix: 219.99 },
