@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { construireContexteParSlug } from "@/lib/chat/contexte";
 import { executerConversation } from "@/lib/chat/agent";
 import { limiteAtteinte } from "@/lib/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ChatMessage } from "@/lib/chat/types";
 
 const MAX_MESSAGE_CARACTERES = 2000;
@@ -26,6 +27,13 @@ export async function envoyerMessageChat(input: {
 
   const ctx = await construireContexteParSlug(input.slug);
   if (!ctx) return { erreur: "Cabinet introuvable." };
+
+  // Compte les conversations démarrées (pas chaque message) pour estimer le coût
+  // réel du chatbot par cabinet — aucun suivi par token, juste un comptage simple.
+  if (historique.length === 0) {
+    const admin = createAdminClient();
+    await admin.from("messages").insert({ cabinet_id: ctx.cabinet.id, canal: "chat" });
+  }
 
   try {
     const res = await executerConversation(ctx, historique, message);
