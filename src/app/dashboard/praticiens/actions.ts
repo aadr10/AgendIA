@@ -48,6 +48,19 @@ export async function renommerPraticien(id: string, nom: string) {
   return { error: null };
 }
 
+export async function changerCouleurPraticien(id: string, couleur: string) {
+  const { supabase, cabinet } = await getSessionContext();
+  const { error } = await supabase
+    .from("praticiens")
+    .update({ couleur_agenda: couleur })
+    .eq("id", id)
+    .eq("cabinet_id", cabinet.id);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/praticiens");
+  revalidatePath("/dashboard/agenda");
+  return { error: null };
+}
+
 export async function desactiverPraticien(id: string) {
   const { supabase, cabinet } = await getSessionContext();
   const { error } = await supabase

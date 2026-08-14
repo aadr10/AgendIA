@@ -2,7 +2,14 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ajouterPraticien, renommerPraticien, desactiverPraticien, uploaderPhotoPraticien, retirerPhotoPraticien } from "./actions";
+import {
+  ajouterPraticien,
+  renommerPraticien,
+  desactiverPraticien,
+  uploaderPhotoPraticien,
+  retirerPhotoPraticien,
+  changerCouleurPraticien,
+} from "./actions";
 
 type Praticien = {
   id: string;
@@ -75,6 +82,15 @@ export default function PraticiensClient({ praticiens, couleurPrimaire }: { prat
     });
   }
 
+  function changerCouleur(id: string, couleur: string) {
+    setErreur(null);
+    startTransition(async () => {
+      const res = await changerCouleurPraticien(id, couleur);
+      if (res.error) setErreur(res.error);
+      else router.refresh();
+    });
+  }
+
   function desactiver(id: string) {
     setErreur(null);
     startTransition(async () => {
@@ -138,9 +154,16 @@ export default function PraticiensClient({ praticiens, couleurPrimaire }: { prat
               {p.horaires.length > 0 ? p.horaires.map((h) => <div key={h}>{h}</div>) : <div className="text-slate-400">Horaires non définis</div>}
             </div>
             <div className="mt-3 flex items-center justify-between">
-              <div className="text-xs text-slate-400">
-                Couleur agenda : <span className="ml-1 inline-block h-3 w-3 rounded-sm align-middle" style={{ background: p.couleurAgenda }} />
-              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                Couleur agenda
+                <input
+                  type="color"
+                  value={p.couleurAgenda}
+                  onChange={(e) => changerCouleur(p.id, e.target.value)}
+                  className="h-6 w-8 cursor-pointer rounded border border-slate-200"
+                  title="Changer la couleur"
+                />
+              </label>
               <div className="flex gap-3 text-xs">
                 {renomme?.id !== p.id && (
                   <button onClick={() => setRenomme({ id: p.id, nom: p.nom })} className="text-slate-500 hover:text-slate-800">
