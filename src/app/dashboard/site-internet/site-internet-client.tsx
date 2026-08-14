@@ -16,6 +16,10 @@ type Cabinet = {
   logoUrl: string | null;
   photoHeroUrl: string | null;
   lienAvisGoogle: string;
+  email: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  tiktokUrl: string;
 };
 
 export default function SiteInternetClient({
@@ -42,6 +46,10 @@ export default function SiteInternetClient({
   const [couleurPrimaire, setCouleurPrimaire] = useState(cabinet.couleurPrimaire);
   const [couleurDouce, setCouleurDouce] = useState(cabinet.couleurDouce);
   const [lienAvisGoogle, setLienAvisGoogle] = useState(cabinet.lienAvisGoogle);
+  const [email, setEmail] = useState(cabinet.email);
+  const [instagramUrl, setInstagramUrl] = useState(cabinet.instagramUrl);
+  const [facebookUrl, setFacebookUrl] = useState(cabinet.facebookUrl);
+  const [tiktokUrl, setTiktokUrl] = useState(cabinet.tiktokUrl);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +67,10 @@ export default function SiteInternetClient({
         couleurPrimaire,
         couleurDouce,
         lienAvisGoogle,
+        email,
+        instagramUrl,
+        facebookUrl,
+        tiktokUrl,
       });
       if (res.error) setErreur(res.error);
       else {
@@ -154,6 +166,41 @@ export default function SiteInternetClient({
             onChange={(e) => setLienAvisGoogle(e.target.value)}
             className={inputCls}
             placeholder="https://g.page/r/.../review"
+          />
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
+          <div className="mb-1 font-medium text-slate-800">Réseaux sociaux &amp; email</div>
+          <p className="mb-3 text-xs text-slate-500">
+            Facultatif — affiché tout en bas de votre site uniquement pour les champs que vous remplissez.
+          </p>
+          <label className="mb-1 block text-xs font-medium text-slate-500">Email de contact</label>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputCls + " mb-3"}
+            placeholder="contact@moncabinet.be"
+          />
+          <label className="mb-1 block text-xs font-medium text-slate-500">Instagram</label>
+          <input
+            value={instagramUrl}
+            onChange={(e) => setInstagramUrl(e.target.value)}
+            className={inputCls + " mb-3"}
+            placeholder="https://instagram.com/moncabinet"
+          />
+          <label className="mb-1 block text-xs font-medium text-slate-500">Facebook</label>
+          <input
+            value={facebookUrl}
+            onChange={(e) => setFacebookUrl(e.target.value)}
+            className={inputCls + " mb-3"}
+            placeholder="https://facebook.com/moncabinet"
+          />
+          <label className="mb-1 block text-xs font-medium text-slate-500">TikTok</label>
+          <input
+            value={tiktokUrl}
+            onChange={(e) => setTiktokUrl(e.target.value)}
+            className={inputCls}
+            placeholder="https://tiktok.com/@moncabinet"
           />
         </div>
 

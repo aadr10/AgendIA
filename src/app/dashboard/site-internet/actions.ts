@@ -17,6 +17,10 @@ export async function majApparence(input: {
   couleurPrimaire: string;
   couleurDouce: string;
   lienAvisGoogle: string;
+  email: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  tiktokUrl: string;
 }) {
   const { supabase, cabinet } = await getSessionContext();
   const { error } = await supabase
@@ -30,6 +34,10 @@ export async function majApparence(input: {
       couleur_primaire: input.couleurPrimaire,
       couleur_douce: input.couleurDouce,
       lien_avis_google: input.lienAvisGoogle.trim() || null,
+      email: input.email.trim() || null,
+      instagram_url: input.instagramUrl.trim() || null,
+      facebook_url: input.facebookUrl.trim() || null,
+      tiktok_url: input.tiktokUrl.trim() || null,
     })
     .eq("id", cabinet.id);
   if (error) return { error: error.message };

@@ -25,6 +25,10 @@ export default async function SiteInternetPage() {
           logoUrl: cabinet.logo_url,
           photoHeroUrl: cabinet.photo_hero_url,
           lienAvisGoogle: cabinet.lien_avis_google ?? "",
+          email: cabinet.email ?? "",
+          instagramUrl: cabinet.instagram_url ?? "",
+          facebookUrl: cabinet.facebook_url ?? "",
+          tiktokUrl: cabinet.tiktok_url ?? "",
         }}
         lienSite={lienSite}
         qrSvg={qrSvg}

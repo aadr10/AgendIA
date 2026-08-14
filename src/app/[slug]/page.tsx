@@ -96,6 +96,10 @@ export default async function CabinetPublicPage({
         couleurDouce: cabinet.couleur_douce,
         logoUrl: cabinet.logo_url,
         photoHeroUrl: cabinet.photo_hero_url,
+        email: cabinet.email ?? "",
+        instagramUrl: cabinet.instagram_url ?? "",
+        facebookUrl: cabinet.facebook_url ?? "",
+        tiktokUrl: cabinet.tiktok_url ?? "",
         aVocal: !!cabinet.numero_twilio,
       }}
       prestations={prestations ?? []}

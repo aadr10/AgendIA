@@ -19,6 +19,10 @@ type Cabinet = {
   couleurDouce: string;
   logoUrl: string | null;
   photoHeroUrl: string | null;
+  email: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  tiktokUrl: string;
   // Vrai uniquement pour l'offre Premium (numéro Twilio + voix IA actifs) —
   // sans ça, on ne doit jamais promettre "répond au téléphone" au patient.
   aVocal: boolean;
@@ -29,6 +33,30 @@ type Liaison = { praticien_id: string; prestation_id: string };
 
 function initiales(nom: string) {
   return nom.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function IconInstagram() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function IconFacebook() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4V9c0-.6.4-1 1-1z" />
+    </svg>
+  );
+}
+function IconTiktok() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16.5 3c.4 2.2 1.8 3.7 4 4v3c-1.5 0-2.9-.4-4-1.2v6.1c0 3.4-2.8 6.1-6.1 6.1S4.3 18.3 4.3 15s2.8-6.1 6.1-6.1c.3 0 .6 0 .9.1v3.1a3 3 0 1 0 2.1 2.9V3h3.1z" />
+    </svg>
+  );
 }
 
 function genJours() {
@@ -520,14 +548,60 @@ export default function SitePatientClient({
           </section>
         )}
       </div>
-      <footer className="px-6 pb-8 text-center text-[11px] text-slate-400">
-        <a href="/mentions-legales" className="underline hover:text-slate-600">
-          Mentions légales
-        </a>
-        {" · "}
-        <a href="/confidentialite" className="underline hover:text-slate-600">
-          Confidentialité
-        </a>
+      <footer className="px-6 pb-8 pt-8 text-center" style={{ background: t.primary }}>
+        {(cabinet.instagramUrl || cabinet.facebookUrl || cabinet.tiktokUrl || cabinet.email || cabinet.telephoneAffiche) && (
+          <div className="mx-auto mb-6 flex max-w-4xl flex-wrap items-center justify-center gap-x-6 gap-y-3">
+            {cabinet.telephoneAffiche && (
+              <a href={`tel:${cabinet.telephoneAffiche}`} className="flex items-center gap-2 text-sm font-medium text-white">
+                <span>📞</span> {cabinet.telephoneAffiche}
+              </a>
+            )}
+            {cabinet.email && (
+              <a href={`mailto:${cabinet.email}`} className="flex items-center gap-2 text-sm font-medium text-white">
+                <span>✉️</span> {cabinet.email}
+              </a>
+            )}
+            {cabinet.instagramUrl && (
+              <a
+                href={cabinet.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 text-sm font-medium text-white"
+              >
+                <IconInstagram /> Instagram
+              </a>
+            )}
+            {cabinet.facebookUrl && (
+              <a
+                href={cabinet.facebookUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 text-sm font-medium text-white"
+              >
+                <IconFacebook /> Facebook
+              </a>
+            )}
+            {cabinet.tiktokUrl && (
+              <a
+                href={cabinet.tiktokUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 text-sm font-medium text-white"
+              >
+                <IconTiktok /> TikTok
+              </a>
+            )}
+          </div>
+        )}
+        <div className="text-[11px] text-white/70">
+          <a href="/mentions-legales" className="underline hover:text-white">
+            Mentions légales
+          </a>
+          {" · "}
+          <a href="/confidentialite" className="underline hover:text-white">
+            Confidentialité
+          </a>
+        </div>
       </footer>
       <div style={{ height: 5, background: t.primary }} />
       <ChatWidget
