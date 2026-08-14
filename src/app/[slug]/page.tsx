@@ -94,6 +94,7 @@ export default async function CabinetPublicPage({
         iaPrenom: cabinet.ia_prenom,
         couleurPrimaire: cabinet.couleur_primaire,
         couleurDouce: cabinet.couleur_douce,
+        logoUrl: cabinet.logo_url,
         photoHeroUrl: cabinet.photo_hero_url,
         aVocal: !!cabinet.numero_twilio,
       }}

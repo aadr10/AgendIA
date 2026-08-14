@@ -17,7 +17,7 @@ function initiales(nom: string) {
   return nom.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
 }
 
-export default function PraticiensClient({ praticiens }: { praticiens: Praticien[] }) {
+export default function PraticiensClient({ praticiens, couleurPrimaire }: { praticiens: Praticien[]; couleurPrimaire: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export default function PraticiensClient({ praticiens }: { praticiens: Praticien
                       className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
                       autoFocus
                     />
-                    <button onClick={renommer} disabled={isPending} className="text-xs font-medium" style={{ color: "#0E5E63" }}>
+                    <button onClick={renommer} disabled={isPending} className="text-xs font-medium" style={{ color: couleurPrimaire }}>
                       OK
                     </button>
                   </div>
@@ -180,7 +180,7 @@ export default function PraticiensClient({ praticiens }: { praticiens: Praticien
                 onClick={creer}
                 disabled={isPending || !ajout.nom.trim()}
                 className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-                style={{ background: "#0E5E63" }}
+                style={{ background: couleurPrimaire }}
               >
                 Ajouter
               </button>

@@ -17,7 +17,7 @@ export default async function EquipePage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Accès équipe" />
-      <EquipeClient membres={membres ?? []} monId={user.id} />
+      <EquipeClient membres={membres ?? []} monId={user.id} couleurPrimaire={cabinet.couleur_primaire} />
     </div>
   );
 }

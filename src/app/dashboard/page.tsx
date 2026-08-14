@@ -87,7 +87,7 @@ export default async function DashboardPage() {
       return {
         t: new Date(r.cree_le).toLocaleString("fr-BE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
         texte: libelle,
-        couleur: r.statut === "annule" ? "#C05E4E" : r.statut === "deplace" ? "#C4762A" : "#0E5E63",
+        couleur: r.statut === "annule" ? "#C05E4E" : r.statut === "deplace" ? "#C4762A" : cabinet.couleur_primaire,
       };
     }),
     ...(appelsRecents ?? []).map((a): Activite => {
@@ -107,8 +107,8 @@ export default async function DashboardPage() {
       <PageHeader title="Tableau de bord" />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="RDV aujourd'hui" value={rdvAujourdhui ?? 0} sub="hors annulés" accent="#0E5E63" />
-        <StatCard label="Appels traités (7 j)" value={appelsSemaine ?? 0} accent="#0E5E63" />
+        <StatCard label="RDV aujourd'hui" value={rdvAujourdhui ?? 0} sub="hors annulés" accent={cabinet.couleur_primaire} />
+        <StatCard label="Appels traités (7 j)" value={appelsSemaine ?? 0} accent={cabinet.couleur_primaire} />
         <StatCard label="Annulations totales" value={annulations ?? 0} />
         <StatCard label="Patients enregistrés" value={patients ?? 0} />
       </div>
@@ -121,11 +121,11 @@ export default async function DashboardPage() {
             </div>
             <span
               className="flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
-              style={{ background: "#E3F2EC", color: "#0E5E63" }}
+              style={{ background: cabinet.couleur_douce, color: cabinet.couleur_primaire }}
             >
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "#0E5E63" }} />
-                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "#0E5E63" }} />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: cabinet.couleur_primaire }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: cabinet.couleur_primaire }} />
               </span>
               En ligne 24h/24
             </span>
@@ -163,7 +163,7 @@ export default async function DashboardPage() {
                 <li key={i} className="flex items-center gap-3 px-5 py-3">
                   <span
                     className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-                    style={{ background: prat?.couleur_agenda ?? "#0E5E63" }}
+                    style={{ background: prat?.couleur_agenda ?? cabinet.couleur_primaire }}
                   >
                     {prat ? initiales(prat.nom) : "?"}
                   </span>

@@ -34,7 +34,7 @@ export default async function PraticiensPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Praticiens" />
-      <PraticiensClient praticiens={praticiens} />
+      <PraticiensClient praticiens={praticiens} couleurPrimaire={cabinet.couleur_primaire} />
     </div>
   );
 }

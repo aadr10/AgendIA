@@ -6,7 +6,15 @@ import { inviterMembre, revoquerAcces } from "./actions";
 
 type Membre = { id: string; email: string; role: string; cree_le: string };
 
-export default function EquipeClient({ membres, monId }: { membres: Membre[]; monId: string }) {
+export default function EquipeClient({
+  membres,
+  monId,
+  couleurPrimaire,
+}: {
+  membres: Membre[];
+  monId: string;
+  couleurPrimaire: string;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -66,7 +74,7 @@ export default function EquipeClient({ membres, monId }: { membres: Membre[]; mo
             onClick={inviter}
             disabled={isPending || !email.trim()}
             className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            style={{ background: "#0E5E63" }}
+            style={{ background: couleurPrimaire }}
           >
             Inviter
           </button>

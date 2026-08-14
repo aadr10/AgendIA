@@ -12,7 +12,7 @@ const VUES: { valeur: Vue; label: string }[] = [
   { valeur: "annee", label: "Année" },
 ];
 
-export default function AgendaNav({ vue, dateISO }: { vue: Vue; dateISO: string }) {
+export default function AgendaNav({ vue, dateISO, couleurPrimaire }: { vue: Vue; dateISO: string; couleurPrimaire: string }) {
   const router = useRouter();
   const date = parseLocalISODate(dateISO);
 
@@ -66,7 +66,7 @@ export default function AgendaNav({ vue, dateISO }: { vue: Vue; dateISO: string 
             key={v.valeur}
             onClick={() => aller(v.valeur, date)}
             className="rounded-md px-3 py-1 font-medium"
-            style={v.valeur === vue ? { background: "#0E5E63", color: "#fff" } : { color: "#94A3B8" }}
+            style={v.valeur === vue ? { background: couleurPrimaire, color: "#fff" } : { color: "#94A3B8" }}
           >
             {v.label}
           </button>

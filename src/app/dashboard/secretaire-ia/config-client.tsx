@@ -11,6 +11,7 @@ export default function ConfigClient({
   cabinet,
   regles,
   faqInitiale,
+  couleurPrimaire,
 }: {
   cabinet: { iaPrenom: string; iaTon: string; iaMessageAccueil: string };
   regles: {
@@ -20,6 +21,7 @@ export default function ConfigClient({
     confirmationAuto: boolean;
   };
   faqInitiale: Faq[];
+  couleurPrimaire: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -117,7 +119,7 @@ export default function ConfigClient({
             onClick={saveIdentite}
             disabled={isPending}
             className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            style={{ background: "#0E5E63" }}
+            style={{ background: couleurPrimaire }}
           >
             Enregistrer
           </button>
@@ -158,12 +160,14 @@ export default function ConfigClient({
             desc={`${prenom} peut créer des fiches pour des patients inconnus`}
             on={r.accepteNouveauxPatients}
             onChange={() => saveRegle({ ...r, accepteNouveauxPatients: !r.accepteNouveauxPatients })}
+            onColor={couleurPrimaire}
           />
           <Toggle
             label="Confirmation automatique"
             desc="Les RDV pris par téléphone ou en ligne sont confirmés sans validation manuelle"
             on={r.confirmationAuto}
             onChange={() => saveRegle({ ...r, confirmationAuto: !r.confirmationAuto })}
+            onColor={couleurPrimaire}
           />
         </div>
       </div>
@@ -205,7 +209,7 @@ export default function ConfigClient({
             onClick={addFaq}
             disabled={isPending || !newQ.trim() || !newR.trim()}
             className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            style={{ background: "#0E5E63" }}
+            style={{ background: couleurPrimaire }}
           >
             Ajouter
           </button>

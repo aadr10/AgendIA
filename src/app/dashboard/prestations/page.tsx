@@ -31,7 +31,7 @@ export default async function PrestationsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Prestations" />
-      <PrestationsClient prestations={prestations} />
+      <PrestationsClient prestations={prestations} couleurPrimaire={cabinet.couleur_primaire} />
     </div>
   );
 }

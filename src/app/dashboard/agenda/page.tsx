@@ -41,9 +41,9 @@ export default async function AgendaPage({
     return (
       <div className="space-y-4">
         <PageHeader title="Agenda" />
-        <AgendaNav vue={vue} dateISO={toLocalISODate(dateRef)} />
+        <AgendaNav vue={vue} dateISO={toLocalISODate(dateRef)} couleurPrimaire={cabinet.couleur_primaire} />
         <MasquerAnciensToggle actif={masquerAnciens} />
-        <YearView annee={dateRef.getFullYear()} />
+        <YearView annee={dateRef.getFullYear()} couleurPrimaire={cabinet.couleur_primaire} />
       </div>
     );
   }
@@ -69,12 +69,13 @@ export default async function AgendaPage({
     return (
       <div className="space-y-4">
         <PageHeader title="Agenda" />
-        <AgendaNav vue={vue} dateISO={toLocalISODate(dateRef)} />
+        <AgendaNav vue={vue} dateISO={toLocalISODate(dateRef)} couleurPrimaire={cabinet.couleur_primaire} />
         <MasquerAnciensToggle actif={masquerAnciens} />
         <MonthView
           moisISO={toLocalISODate(premierDuMois)}
           praticiens={praticiens ?? []}
           rdvs={(rdvsData ?? []).map((r) => ({ debut: r.debut, praticienId: r.praticien_id }))}
+          couleurPrimaire={cabinet.couleur_primaire}
         />
       </div>
     );
@@ -133,7 +134,7 @@ export default async function AgendaPage({
   return (
     <div className="space-y-4">
       <PageHeader title="Agenda" />
-      <AgendaNav vue={vue} dateISO={toLocalISODate(dateDebut)} />
+      <AgendaNav vue={vue} dateISO={toLocalISODate(dateDebut)} couleurPrimaire={cabinet.couleur_primaire} />
       <MasquerAnciensToggle actif={masquerAnciens} />
       <AgendaClient
         semaineDebutISO={toLocalISODate(dateDebut)}
@@ -142,6 +143,7 @@ export default async function AgendaPage({
         prestations={prestations ?? []}
         rdvsInitiaux={rdvs}
         blocagesInitiaux={blocages}
+        couleurPrimaire={cabinet.couleur_primaire}
       />
     </div>
   );

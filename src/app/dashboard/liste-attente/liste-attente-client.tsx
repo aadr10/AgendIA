@@ -14,7 +14,7 @@ type Ligne = {
   creeLe: string;
 };
 
-export default function ListeAttenteClient({ lignes }: { lignes: Ligne[] }) {
+export default function ListeAttenteClient({ lignes, couleurPrimaire }: { lignes: Ligne[]; couleurPrimaire: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export default function ListeAttenteClient({ lignes }: { lignes: Ligne[] }) {
                 <div className="text-sm font-semibold text-slate-800">{l.patientNom}</div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                   {l.patientTelephone && (
-                    <a href={`tel:${l.patientTelephone}`} className="font-medium hover:underline" style={{ color: "#0E5E63" }}>
+                    <a href={`tel:${l.patientTelephone}`} className="font-medium hover:underline" style={{ color: couleurPrimaire }}>
                       📞 {l.patientTelephone}
                     </a>
                   )}

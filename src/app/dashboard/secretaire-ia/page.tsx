@@ -26,6 +26,7 @@ export default async function SecretaireIAPage() {
           iaTon: cabinet.ia_ton,
           iaMessageAccueil: cabinet.ia_message_accueil ?? "",
         }}
+        couleurPrimaire={cabinet.couleur_primaire}
         regles={{
           delaiMinReservationHeures: regles?.delai_min_reservation_heures ?? 2,
           delaiAnnulationHeures: regles?.delai_annulation_heures ?? 24,

@@ -45,7 +45,7 @@ export default async function DashboardLayout({
         <aside className="hidden w-52 flex-shrink-0 md:block">
           <div className="mb-6 px-2">
             <Link href="/dashboard">
-              <div className="text-lg font-semibold" style={{ color: "#0E5E63" }}>
+              <div className="text-lg font-semibold" style={{ color: cabinet.couleur_primaire }}>
                 {cabinet.nom}
               </div>
             </Link>
@@ -53,10 +53,10 @@ export default async function DashboardLayout({
               {METIER_LABELS[cabinet.metier] ?? cabinet.metier} · {cabinet.ville}
             </div>
           </div>
-          <NavLinks nav={NAV} />
+          <NavLinks nav={NAV} couleurPrimaire={cabinet.couleur_primaire} />
           <div
             className="mt-8 rounded-xl p-4 text-xs"
-            style={{ background: "#E3F2EC", color: "#0E5E63" }}
+            style={{ background: cabinet.couleur_douce, color: cabinet.couleur_primaire }}
           >
             <div className="mb-1 font-semibold">{cabinet.ia_prenom} est en ligne</div>
             Interface connectée à vos données réelles.

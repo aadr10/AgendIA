@@ -8,7 +8,17 @@ const MOIS_NOMS = [
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
 ];
 
-function MiniMois({ annee, mois, aujourdhuiISO }: { annee: number; mois: number; aujourdhuiISO: string }) {
+function MiniMois({
+  annee,
+  mois,
+  aujourdhuiISO,
+  couleurPrimaire,
+}: {
+  annee: number;
+  mois: number;
+  aujourdhuiISO: string;
+  couleurPrimaire: string;
+}) {
   const router = useRouter();
   const premierJour = new Date(annee, mois, 1);
   const jourSemaineDuPremier = (premierJour.getDay() + 6) % 7;
@@ -39,7 +49,7 @@ function MiniMois({ annee, mois, aujourdhuiISO }: { annee: number; mois: number;
               key={i}
               onClick={() => router.push(`/dashboard/agenda?vue=jour&date=${iso}`)}
               className="mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px] hover:bg-slate-100"
-              style={isToday ? { background: "#0E5E63", color: "#fff" } : { color: "#475569" }}
+              style={isToday ? { background: couleurPrimaire, color: "#fff" } : { color: "#475569" }}
             >
               {date.getDate()}
             </button>
@@ -50,12 +60,12 @@ function MiniMois({ annee, mois, aujourdhuiISO }: { annee: number; mois: number;
   );
 }
 
-export default function YearView({ annee }: { annee: number }) {
+export default function YearView({ annee, couleurPrimaire }: { annee: number; couleurPrimaire: string }) {
   const aujourdhuiISO = toLocalISODate(new Date());
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 12 }, (_, mois) => (
-        <MiniMois key={mois} annee={annee} mois={mois} aujourdhuiISO={aujourdhuiISO} />
+        <MiniMois key={mois} annee={annee} mois={mois} aujourdhuiISO={aujourdhuiISO} couleurPrimaire={couleurPrimaire} />
       ))}
     </div>
   );

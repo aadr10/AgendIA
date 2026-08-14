@@ -12,7 +12,7 @@ type Prestation = {
   praticiens: string[];
 };
 
-export default function PrestationsClient({ prestations }: { prestations: Prestation[] }) {
+export default function PrestationsClient({ prestations, couleurPrimaire }: { prestations: Prestation[]; couleurPrimaire: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -114,7 +114,7 @@ export default function PrestationsClient({ prestations }: { prestations: Presta
               onClick={creer}
               disabled={isPending || !ajout.nom.trim()}
               className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-              style={{ background: "#0E5E63" }}
+              style={{ background: couleurPrimaire }}
             >
               Ajouter
             </button>

@@ -12,10 +12,12 @@ export default function MonthView({
   moisISO,
   praticiens,
   rdvs,
+  couleurPrimaire,
 }: {
   moisISO: string; // YYYY-MM-01
   praticiens: Praticien[];
   rdvs: RdvLeger[];
+  couleurPrimaire: string;
 }) {
   const router = useRouter();
   const premierJourMois = new Date(moisISO + "T00:00:00");
@@ -71,7 +73,7 @@ export default function MonthView({
             >
               <span
                 className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium"
-                style={isToday ? { background: "#0E5E63", color: "#fff" } : { color: "#334155" }}
+                style={isToday ? { background: couleurPrimaire, color: "#fff" } : { color: "#334155" }}
               >
                 {date.getDate()}
               </span>

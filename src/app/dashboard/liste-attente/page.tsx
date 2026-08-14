@@ -26,7 +26,7 @@ export default async function ListeAttentePage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Liste d'attente" />
-      <ListeAttenteClient lignes={lignes} />
+      <ListeAttenteClient lignes={lignes} couleurPrimaire={cabinet.couleur_primaire} />
     </div>
   );
 }

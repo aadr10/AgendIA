@@ -17,6 +17,7 @@ type Cabinet = {
   iaPrenom: string;
   couleurPrimaire: string;
   couleurDouce: string;
+  logoUrl: string | null;
   photoHeroUrl: string | null;
   // Vrai uniquement pour l'offre Premium (numéro Twilio + voix IA actifs) —
   // sans ça, on ne doit jamais promettre "répond au téléphone" au patient.
@@ -176,12 +177,20 @@ export default function SitePatientClient({
       <div className="mx-auto max-w-4xl px-4 pb-24">
         <header className="flex items-center justify-between py-5">
           <div className="flex items-center gap-3">
-            <span
-              className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-bold text-white"
-              style={{ background: t.primary }}
-            >
-              {cabinet.nom.trim().charAt(0) || "?"}
-            </span>
+            {cabinet.logoUrl ? (
+              <img
+                src={cabinet.logoUrl}
+                alt={cabinet.nom}
+                className="h-11 w-11 rounded-xl object-cover"
+              />
+            ) : (
+              <span
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-bold text-white"
+                style={{ background: t.primary }}
+              >
+                {cabinet.nom.trim().charAt(0) || "?"}
+              </span>
+            )}
             <div>
               <div className="text-lg font-semibold leading-tight">{cabinet.nom}</div>
               <div className="text-xs text-slate-500">

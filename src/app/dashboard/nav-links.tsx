@@ -5,8 +5,10 @@ import { usePathname } from "next/navigation";
 
 export default function NavLinks({
   nav,
+  couleurPrimaire,
 }: {
   nav: { label: string; href: string }[];
+  couleurPrimaire: string;
 }) {
   const pathname = usePathname();
 
@@ -21,7 +23,7 @@ export default function NavLinks({
             className="block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors"
             style={
               active
-                ? { background: "#0E5E63", color: "#fff", fontWeight: 500 }
+                ? { background: couleurPrimaire, color: "#fff", fontWeight: 500 }
                 : { color: "#475569" }
             }
           >

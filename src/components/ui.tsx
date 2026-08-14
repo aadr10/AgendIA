@@ -28,11 +28,13 @@ export function Toggle({
   desc,
   on,
   onChange,
+  onColor = "#0E5E63",
 }: {
   label: string;
   desc: string;
   on: boolean;
   onChange: () => void;
+  onColor?: string;
 }) {
   return (
     <button
@@ -46,7 +48,7 @@ export function Toggle({
       </div>
       <div
         className="h-6 w-11 flex-shrink-0 rounded-full p-1 transition-colors"
-        style={{ background: on ? "#0E5E63" : "#CBD5E1" }}
+        style={{ background: on ? onColor : "#CBD5E1" }}
       >
         <div
           className="h-4 w-4 rounded-full bg-white transition-transform"

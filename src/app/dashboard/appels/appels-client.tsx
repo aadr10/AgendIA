@@ -30,7 +30,17 @@ function formatHeure(iso: string) {
   return `${prefix} · ${d.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-export default function AppelsClient({ appels }: { appels: Appel[] }) {
+export default function AppelsClient({
+  appels,
+  iaPrenom,
+  couleurPrimaire,
+  couleurDouce,
+}: {
+  appels: Appel[];
+  iaPrenom: string;
+  couleurPrimaire: string;
+  couleurDouce: string;
+}) {
   const [open, setOpen] = useState<string | null>(appels[0]?.id ?? null);
 
   if (appels.length === 0) {
@@ -62,16 +72,16 @@ export default function AppelsClient({ appels }: { appels: Appel[] }) {
             <div className="space-y-2 border-t border-slate-100 px-5 py-4" style={{ background: "#F7F9F8" }}>
               <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Transcription</div>
               {a.transcription.map((t, i) => (
-                <div key={i} className={`flex ${t.qui === "Sofia" ? "" : "justify-end"}`}>
+                <div key={i} className={`flex ${t.qui === iaPrenom ? "" : "justify-end"}`}>
                   <div
                     className="max-w-[85%] rounded-xl px-3 py-2 text-sm"
                     style={
-                      t.qui === "Sofia"
-                        ? { background: "#E3F2EC", color: "#16232A" }
+                      t.qui === iaPrenom
+                        ? { background: couleurDouce, color: "#16232A" }
                         : { background: "#FFFFFF", border: "1px solid #E2E8F0", color: "#16232A" }
                     }
                   >
-                    <span className="mr-1 text-xs font-semibold" style={{ color: t.qui === "Sofia" ? "#0E5E63" : "#64748B" }}>
+                    <span className="mr-1 text-xs font-semibold" style={{ color: t.qui === iaPrenom ? couleurPrimaire : "#64748B" }}>
                       {t.qui} —
                     </span>
                     {t.texte}

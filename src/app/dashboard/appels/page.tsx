@@ -24,7 +24,7 @@ export default async function AppelsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Appels" />
-      <AppelsClient appels={appels} />
+      <AppelsClient appels={appels} iaPrenom={cabinet.ia_prenom} couleurPrimaire={cabinet.couleur_primaire} couleurDouce={cabinet.couleur_douce} />
     </div>
   );
 }

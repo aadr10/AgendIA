@@ -79,6 +79,7 @@ export default function AgendaClient({
   prestations,
   rdvsInitiaux,
   blocagesInitiaux,
+  couleurPrimaire,
 }: {
   semaineDebutISO: string;
   nbJours?: number;
@@ -86,6 +87,7 @@ export default function AgendaClient({
   prestations: Prestation[];
   rdvsInitiaux: Rdv[];
   blocagesInitiaux: Blocage[];
+  couleurPrimaire: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -323,7 +325,7 @@ export default function AgendaClient({
           <button
             onClick={ouvrirNouveauRdv}
             className="rounded-lg px-4 py-2 text-xs font-semibold text-white"
-            style={{ background: "#0E5E63" }}
+            style={{ background: couleurPrimaire }}
           >
             + Nouveau rendez-vous
           </button>
@@ -433,7 +435,7 @@ export default function AgendaClient({
                 (!form.id && (!form.patientNom.trim() || !form.patientTelephone.trim()))
               }
               className="rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
-              style={{ background: "#0E5E63" }}
+              style={{ background: couleurPrimaire }}
             >
               Enregistrer
             </button>
@@ -614,7 +616,7 @@ export default function AgendaClient({
                       style={{
                         top: (hDebut - H0) * ROW_H + 1,
                         height: (r.dureeMinutes / 60) * ROW_H - 3,
-                        background: p?.couleur_agenda ?? "#0E5E63",
+                        background: p?.couleur_agenda ?? couleurPrimaire,
                         opacity: isSel ? 1 : 0.9,
                         outline: isSel ? "2px solid #16232A" : "none",
                       }}
