@@ -634,6 +634,10 @@ export default function AgendaClient({
       {sel && (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm">
           <span className="font-medium text-slate-800">{sel.patientNom}</span>
+          <span className="font-medium" style={{ color: praticiens.find((p) => p.id === sel.praticienId)?.couleur_agenda }}>
+            {new Date(sel.debut).toLocaleDateString("fr-BE", { weekday: "long", day: "numeric", month: "long" })} à{" "}
+            {new Date(sel.debut).toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}
+          </span>
           <span className="text-slate-500">
             {sel.prestationNom} · {sel.dureeMinutes} min ·{" "}
             {praticiens.find((p) => p.id === sel.praticienId)?.nom}
