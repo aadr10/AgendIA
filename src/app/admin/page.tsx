@@ -28,14 +28,12 @@ export default async function AdminPage() {
   const actifs = lignes.filter((l) => l.statut === "actif").length;
   const essai = lignes.filter((l) => l.statut === "essai").length;
   const premium = lignes.filter((l) => l.offre === "premium").length;
-  const intermediaire = lignes.filter((l) => l.offre === "intermediaire").length;
 
   const stats = [
     { label: "Cabinets clients", valeur: total, couleur: "#0E5E63" },
     { label: "Abonnements actifs", valeur: actifs, couleur: "#0E7C86" },
     { label: "En essai", valeur: essai, couleur: "#B8792F" },
     { label: "Offre Premium", valeur: premium, couleur: "#2E5FA4" },
-    { label: "Offre Intermédiaire", valeur: intermediaire, couleur: "#6B4C9A" },
   ];
 
   return (
