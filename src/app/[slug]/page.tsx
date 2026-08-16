@@ -46,10 +46,13 @@ export async function generateMetadata({
 
 export default async function CabinetPublicPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ admin?: string }>;
 }) {
   const { slug } = await params;
+  const { admin: depuisAdmin } = await searchParams;
   const supabase = createAdminClient();
 
   const { data: cabinet } = await supabase
@@ -102,6 +105,7 @@ export default async function CabinetPublicPage({
         tiktokUrl: cabinet.tiktok_url ?? "",
         aVocal: !!cabinet.numero_twilio,
       }}
+      depuisAdmin={depuisAdmin === "1"}
       prestations={prestations ?? []}
       praticiens={praticiens ?? []}
       liaisons={liaisons ?? []}

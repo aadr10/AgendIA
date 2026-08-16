@@ -112,7 +112,7 @@ export default function SiteInternetClient({
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 lg:col-span-2">
         Votre site public :{" "}
-        <a href={`/${cabinet.slug}`} target="_blank" rel="noreferrer" className="font-medium underline" style={{ color: couleurPrimaire }}>
+        <a href={`/${cabinet.slug}?admin=1`} className="font-medium underline" style={{ color: couleurPrimaire }}>
           /{cabinet.slug}
         </a>{" "}
         — tout changement ci-dessous y est visible immédiatement, sans rien publier.

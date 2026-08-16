@@ -62,7 +62,7 @@ export default function AdminCabinetsClient({ lignes }: { lignes: Ligne[] }) {
                   {l.nom}
                 </a>
                 <div className="truncate text-xs text-slate-400">
-                  <a href={`/${l.slug}`} className="hover:underline">/{l.slug}</a>
+                  <a href={`/${l.slug}?admin=1`} className="hover:underline">/{l.slug}</a>
                   {l.ville ? ` · ${l.ville}` : ""}
                 </div>
               </div>

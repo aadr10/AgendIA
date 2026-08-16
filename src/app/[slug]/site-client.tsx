@@ -82,11 +82,13 @@ export default function SitePatientClient({
   prestations,
   praticiens,
   liaisons,
+  depuisAdmin,
 }: {
   cabinet: Cabinet;
   prestations: Prestation[];
   praticiens: Praticien[];
   liaisons: Liaison[];
+  depuisAdmin?: boolean;
 }) {
   const t = {
     primary: cabinet.couleurPrimaire,
@@ -202,6 +204,18 @@ export default function SitePatientClient({
   return (
     <div className="min-h-screen" style={{ background: "#F7F9F8", color: t.dark, fontFamily: "system-ui, sans-serif" }}>
       <div style={{ height: 5, background: t.primary }} />
+      {depuisAdmin && (
+        // Visible uniquement quand ce lien vient de l'admin/dashboard (jamais pour
+        // un vrai patient) — en mode "app" installée sur l'écran d'accueil, il n'y
+        // a ni barre d'adresse ni geste de retour natif, donc sans ce bouton on
+        // reste bloqué sur cette page.
+        <button
+          onClick={() => window.history.back()}
+          className="w-full bg-slate-800 px-4 py-2 text-left text-xs font-medium text-white"
+        >
+          ← Retour
+        </button>
+      )}
       <div className="mx-auto max-w-4xl px-4 pb-24">
         <header className="flex items-center justify-between py-5">
           <div className="flex items-center gap-3">
