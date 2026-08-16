@@ -139,6 +139,7 @@ export async function reserverRdv(input: {
     })
     .select("id")
     .single();
+  if (er?.code === "23P01") return { error: "Ce créneau vient d'être réservé par quelqu'un d'autre. Merci de choisir un autre horaire." };
   if (er || !rdvCree) return { error: "Impossible de créer le rendez-vous : " + er?.message };
 
   const [{ data: cabinet }, { data: praticien }, { data: prestation }] = await Promise.all([

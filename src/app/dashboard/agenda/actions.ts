@@ -64,6 +64,7 @@ export async function creerRdv(input: {
     })
     .select("id")
     .single();
+  if (er?.code === "23P01") return { error: "Ce créneau vient d'être pris. Réessaie." };
   if (er || !rdvCree) return { error: er?.message };
 
   if (input.patientEmail) {
@@ -123,6 +124,7 @@ export async function deplacerRdv(input: {
     })
     .eq("id", input.id)
     .eq("cabinet_id", cabinet.id);
+  if (error?.code === "23P01") return { error: "Ce créneau vient d'être pris. Réessaie." };
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/agenda");
@@ -318,6 +320,7 @@ export async function replanifierPatient(input: {
     statut: "confirme",
     origine: "site",
   });
+  if (error?.code === "23P01") return { error: "Ce créneau vient d'être pris. Réessaie." };
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/agenda");

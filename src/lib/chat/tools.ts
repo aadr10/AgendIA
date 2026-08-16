@@ -302,6 +302,7 @@ export async function executerOutil(
       })
       .select("id")
       .single();
+    if (er?.code === "23P01") return { succes: false, erreur: "Ce créneau vient d'être pris. Il faut en proposer un autre." };
     if (er || !rdvCree) return { succes: false, erreur: "Erreur lors de la création du rendez-vous." };
 
     await envoyerConfirmationRdv({
@@ -365,7 +366,12 @@ export async function executerOutil(
       .gt("fin", debut.toISOString());
     if (conflits && conflits.length > 0) return { succes: false, erreur: "Ce nouveau créneau n'est pas libre." };
 
-    await supabase.from("rendez_vous").update({ debut: debut.toISOString(), fin: fin.toISOString() }).eq("id", rdv.id);
+    const { error: eDeplace } = await supabase
+      .from("rendez_vous")
+      .update({ debut: debut.toISOString(), fin: fin.toISOString() })
+      .eq("id", rdv.id);
+    if (eDeplace?.code === "23P01") return { succes: false, erreur: "Ce créneau vient d'être pris. Il faut en proposer un autre." };
+    if (eDeplace) return { succes: false, erreur: "Erreur lors du déplacement du rendez-vous." };
 
     return {
       succes: true,

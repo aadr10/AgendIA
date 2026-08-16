@@ -4,6 +4,7 @@
 -- ============================================================================
 
 create extension if not exists pgcrypto;
+create extension if not exists btree_gist; -- nécessaire pour la contrainte d'exclusion anti-double-réservation sur rendez_vous
 
 -- ----------------------------------------------------------------------------
 -- 1. CABINETS — le cœur du white-label
@@ -137,7 +138,15 @@ create table public.rendez_vous (
                  check (statut in ('confirme', 'annule', 'deplace', 'termine', 'absent')),
   origine        text not null
                  check (origine in ('ia_telephone', 'site', 'chat', 'manuel')),
-  cree_le        timestamptz not null default now()
+  cree_le        timestamptz not null default now(),
+  -- Filet de sécurité en dur contre le double-booking : la vérification de
+  -- conflit côté code (SELECT puis INSERT) laisse une fenêtre de course entre
+  -- deux réservations quasi simultanées sur le même créneau. Cette contrainte
+  -- empêche PostgreSQL lui-même d'accepter deux rdv qui se chevauchent pour un
+  -- même praticien, indépendamment de ce que le code a vérifié avant.
+  constraint rendez_vous_pas_de_chevauchement
+    exclude using gist (praticien_id with =, tstzrange(debut, fin) with &&)
+    where (statut <> 'annule')
 );
 create index rendez_vous_cabinet_id_idx on public.rendez_vous(cabinet_id);
 create index rendez_vous_praticien_id_idx on public.rendez_vous(praticien_id);

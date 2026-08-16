@@ -89,6 +89,7 @@ export async function confirmerReplanification(input: {
     })
     .select("id")
     .single();
+  if (er?.code === "23P01") return { error: "Ce créneau vient d'être pris. Merci d'en choisir un autre." };
   if (er || !rdvCree) return { error: "Impossible de créer le rendez-vous : " + er?.message };
 
   const [{ data: cabinet }, { data: praticien }, { data: prestation }] = await Promise.all([
