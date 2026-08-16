@@ -5,6 +5,7 @@ import { metierConfig } from "@/lib/metiers";
 import { StatCard, badgeStyle, STATUT_LABELS } from "@/components/ui";
 import EditionCabinetAdmin from "./edition-client";
 import PraticienPhotoAdmin from "./praticien-photo-admin";
+import PaiementStripeAdmin from "./paiement-stripe-admin";
 import { voirDashboardCabinet } from "../../actions";
 import { OFFRE_BADGE, type Offre } from "@/lib/offres";
 
@@ -124,6 +125,12 @@ export default async function AdminCabinetDetailPage({
           </a>
         </div>
       </div>
+
+      <PaiementStripeAdmin
+        cabinetId={cabinet.id}
+        aDejaUnAbonnement={!!cabinet.stripe_subscription_id}
+        statutAbonnement={cabinet.statut_abonnement}
+      />
 
       <EditionCabinetAdmin
         cabinet={{
