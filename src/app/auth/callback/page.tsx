@@ -24,7 +24,6 @@ function AuthCallbackContenu() {
   const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
-    const next = searchParams.get("next") ?? "/dashboard";
     const supabase = createClient();
 
     async function traiter() {
@@ -35,6 +34,13 @@ function AuthCallbackContenu() {
       const hashParams = new URLSearchParams(hash);
       const accessToken = hashParams.get("access_token");
       const refreshToken = hashParams.get("refresh_token");
+      // Supabase tronque le paramètre ?next=... de redirectTo dès qu'il dépasse
+      // l'URL de base configurée comme "Site URL" côté projet — donc on ne peut
+      // pas compter dessus pour savoir où renvoyer un compte fraîchement invité.
+      // Le type du lien (invite/recovery), lui, arrive de façon fiable dans le
+      // fragment : on s'en sert pour forcer la création de mot de passe.
+      const typeAuth = hashParams.get("type");
+      const next = typeAuth === "invite" || typeAuth === "recovery" ? "/auth/set-password" : (searchParams.get("next") ?? "/dashboard");
 
       if (accessToken && refreshToken) {
         const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
