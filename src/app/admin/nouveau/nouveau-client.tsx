@@ -154,7 +154,7 @@ export default function NouveauCabinetClient() {
           <div className="rounded-lg border border-slate-200 p-3">
             <div className="text-xs font-medium text-slate-500">Lien du site (à partager avec les patients)</div>
             <div className="mt-1 flex items-center gap-2">
-              <a href={lienSite} target="_blank" rel="noreferrer" className="break-all text-sm underline">{lienSite}</a>
+              <a href={lienSite} className="break-all text-sm underline">{lienSite}</a>
               <button
                 onClick={() => copier(lienSite, "site")}
                 className="flex-shrink-0 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"

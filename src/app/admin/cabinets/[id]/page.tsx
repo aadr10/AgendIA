@@ -120,7 +120,7 @@ export default async function AdminCabinetDetailPage({
               Voir son dashboard →
             </button>
           </form>
-          <a href={`/${cabinet.slug}`} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:border-slate-300">
+          <a href={`/${cabinet.slug}`} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:border-slate-300">
             Voir son site ↗
           </a>
         </div>
