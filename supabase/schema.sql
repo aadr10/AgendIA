@@ -33,8 +33,11 @@ create table public.cabinets (
   lien_avis_google      text,
   sms_rappel_actif      boolean not null default true,
   sms_forfait_mensuel   integer not null default 250,
-  statut_abonnement     text not null default 'essai',
+  statut_abonnement     text not null default 'essai', -- 'essai' | 'actif' | 'impaye'
   offre                 text not null default 'site' check (offre in ('site', 'premium')),
+  stripe_customer_id    text,
+  stripe_subscription_id text,
+  stripe_price_id       text,
   masquer_rdv_anciens   boolean not null default false,
   minutes_incluses      integer not null default 800,
   minutes_consommees    integer not null default 0,

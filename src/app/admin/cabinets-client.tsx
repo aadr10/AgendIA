@@ -21,6 +21,7 @@ const STATUT_STYLE: Record<string, { bg: string; fg: string; label: string }> = 
   essai: { bg: "#FBF0DF", fg: "#8A5A16", label: "Essai" },
   actif: { bg: "#E3F2EC", fg: "#0E5E63", label: "Actif" },
   suspendu: { bg: "#FBE7E4", fg: "#9C3325", label: "Suspendu" },
+  impaye: { bg: "#FBE7E4", fg: "#9C3325", label: "⚠ Impayé" },
 };
 
 export default function AdminCabinetsClient({ lignes }: { lignes: Ligne[] }) {
@@ -28,7 +29,7 @@ export default function AdminCabinetsClient({ lignes }: { lignes: Ligne[] }) {
   const [isPending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
 
-  function changerStatut(id: string, statut: "essai" | "actif" | "suspendu") {
+  function changerStatut(id: string, statut: "essai" | "actif" | "suspendu" | "impaye") {
     setErreur(null);
     startTransition(async () => {
       const res = await basculerStatutCabinet(id, statut);
@@ -87,12 +88,13 @@ export default function AdminCabinetsClient({ lignes }: { lignes: Ligne[] }) {
 
               <select
                 value={l.statut}
-                onChange={(e) => changerStatut(l.id, e.target.value as "essai" | "actif" | "suspendu")}
+                onChange={(e) => changerStatut(l.id, e.target.value as "essai" | "actif" | "suspendu" | "impaye")}
                 disabled={isPending}
                 className="ml-auto rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
               >
                 <option value="essai">Essai</option>
                 <option value="actif">Actif</option>
+                <option value="impaye">Impayé</option>
                 <option value="suspendu">Suspendu</option>
               </select>
             </div>

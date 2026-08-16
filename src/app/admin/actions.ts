@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { genererQrSvg } from "@/lib/qrcode";
 import { type Offre, prixOffre, offreNecessiteNumero } from "@/lib/offres";
+import { stripe, stripePriceId, prochainPremierDuMoisUnix } from "@/lib/stripe";
 
 const COOKIE_VUE_ADMIN = "admin_vue_cabinet_id";
 
@@ -49,7 +50,7 @@ async function verifierSuperAdmin() {
   }
 }
 
-export async function basculerStatutCabinet(cabinetId: string, statut: "essai" | "actif" | "suspendu") {
+export async function basculerStatutCabinet(cabinetId: string, statut: "essai" | "actif" | "suspendu" | "impaye") {
   await verifierSuperAdmin();
   const admin = createAdminClient();
   const { error } = await admin.from("cabinets").update({ statut_abonnement: statut }).eq("id", cabinetId);
@@ -77,6 +78,13 @@ export async function majCabinetAdmin(
 ) {
   await verifierSuperAdmin();
   const admin = createAdminClient();
+
+  const { data: cabinetActuel } = await admin
+    .from("cabinets")
+    .select("offre, stripe_subscription_id, stripe_price_id")
+    .eq("id", cabinetId)
+    .single();
+
   const { error } = await admin
     .from("cabinets")
     .update({
@@ -95,6 +103,26 @@ export async function majCabinetAdmin(
     })
     .eq("id", cabinetId);
   if (error) return { error: error.message };
+
+  // Un seul endroit à toucher pour Andrea (ce formulaire) : si le palier change
+  // et qu'un abonnement Stripe existe déjà pour ce cabinet, on répercute le
+  // nouveau prix automatiquement, avec prorata géré par Stripe lui-même.
+  if (cabinetActuel?.stripe_subscription_id) {
+    const nouveauPrixId = stripePriceId(cabinetActuel.offre as Offre, input.smsForfaitMensuel);
+    if (nouveauPrixId && nouveauPrixId !== cabinetActuel.stripe_price_id) {
+      try {
+        const abonnement = await stripe.subscriptions.retrieve(cabinetActuel.stripe_subscription_id);
+        await stripe.subscriptions.update(cabinetActuel.stripe_subscription_id, {
+          items: [{ id: abonnement.items.data[0].id, price: nouveauPrixId }],
+          proration_behavior: "create_prorations",
+        });
+        await admin.from("cabinets").update({ stripe_price_id: nouveauPrixId }).eq("id", cabinetId);
+      } catch (e) {
+        console.error("Échec mise à jour abonnement Stripe :", e);
+      }
+    }
+  }
+
   revalidatePath(`/admin/cabinets/${cabinetId}`);
   revalidatePath("/[slug]");
   return { error: null };
@@ -223,6 +251,7 @@ export async function creerCabinet(input: {
   accepteNouveauxPatients: boolean;
   offre: Offre;
   smsForfaitMensuel: number;
+  activerPaiementStripe: boolean;
 }) {
   await verifierSuperAdmin();
   const admin = createAdminClient();
@@ -396,6 +425,41 @@ export async function creerCabinet(input: {
 
   await admin.from("users").insert({ id: userId, cabinet_id: cabinet.id, email: emailAdmin, role: "admin" });
 
+  // Lien de paiement Stripe — prix choisi automatiquement selon l'offre/palier
+  // sélectionnés ci-dessus, jamais à chercher/choisir à la main (source d'erreur
+  // évitée). Premier prélèvement calé sur le 1er du mois suivant pour tout le
+  // monde (décision explicite d'Andrea), donc le tout premier cycle est
+  // automatiquement proratisé par Stripe si le client paie en cours de mois.
+  let lienPaiement: string | null = null;
+  if (input.activerPaiementStripe && process.env.STRIPE_SECRET_KEY) {
+    const prixId = stripePriceId(input.offre, input.smsForfaitMensuel);
+    if (prixId) {
+      try {
+        const client = await stripe.customers.create({ email: emailAdmin, name: nom });
+        const session = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          customer: client.id,
+          line_items: [{ price: prixId, quantity: 1 }],
+          payment_method_types: ["card", "sepa_debit"],
+          subscription_data: {
+            billing_cycle_anchor: prochainPremierDuMoisUnix(),
+            proration_behavior: "create_prorations",
+            metadata: { cabinet_id: cabinet.id },
+          },
+          metadata: { cabinet_id: cabinet.id },
+          success_url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/cabinets/${cabinet.id}?paiement=ok`,
+          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/cabinets/${cabinet.id}?paiement=annule`,
+        });
+        lienPaiement = session.url;
+        await admin.from("cabinets").update({ stripe_customer_id: client.id, stripe_price_id: prixId }).eq("id", cabinet.id);
+      } catch (e) {
+        // Le cabinet existe déjà et fonctionne très bien sans lien de paiement —
+        // un souci Stripe ici ne doit jamais bloquer la création du cabinet.
+        console.error("Échec création lien de paiement Stripe :", e);
+      }
+    }
+  }
+
   revalidatePath("/admin");
   return {
     error: null,
@@ -403,6 +467,7 @@ export async function creerCabinet(input: {
     cabinetId: cabinet.id,
     numeroTwilio,
     lienEspacePraticien,
+    lienPaiement,
     praticiens: praticiensACreer.map((p, i) => ({ id: praticienIds[i], nom: p.nom.trim() })).filter((p) => p.id),
   };
 }

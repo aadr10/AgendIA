@@ -136,7 +136,9 @@ export default async function RentabilitePage() {
                   <Link href={`/admin/cabinets/${l.id}`} className="font-medium text-slate-800 hover:underline">
                     {l.nom}
                   </Link>
-                  <div className="text-xs text-slate-400">{l.statut === "actif" ? "Actif" : l.statut === "essai" ? "Essai" : l.statut}</div>
+                  <div className={`text-xs ${l.statut === "impaye" ? "font-semibold text-[#9C3325]" : "text-slate-400"}`}>
+                    {l.statut === "actif" ? "Actif" : l.statut === "essai" ? "Essai" : l.statut === "impaye" ? "⚠ Impayé" : l.statut}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <span

@@ -17,7 +17,7 @@ export default function NouveauCabinetClient() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  const [succes, setSucces] = useState<{ slug: string; cabinetId?: string; numeroTwilio?: string | null; lienEspacePraticien?: string | null } | null>(null);
+  const [succes, setSucces] = useState<{ slug: string; cabinetId?: string; numeroTwilio?: string | null; lienEspacePraticien?: string | null; lienPaiement?: string | null } | null>(null);
   const [copie, setCopie] = useState<string | null>(null);
 
   function copier(texte: string, cle: string) {
@@ -57,6 +57,7 @@ export default function NouveauCabinetClient() {
   const [accepteNouveauxPatients, setAccepteNouveauxPatients] = useState(true);
   const [offre, setOffre] = useState<Offre>("site");
   const [smsForfaitMensuel, setSmsForfaitMensuel] = useState(250);
+  const [activerPaiementStripe, setActiverPaiementStripe] = useState(false);
 
   // Certaines offres n'ont pas les mêmes paliers (ex: "site" a un palier 0 SMS
   // que les autres n'ont pas) — en changeant d'offre, on retombe sur le premier
@@ -98,6 +99,7 @@ export default function NouveauCabinetClient() {
         accepteNouveauxPatients,
         offre,
         smsForfaitMensuel,
+        activerPaiementStripe,
       });
       if (res.error) {
         setErreur(res.error);
@@ -134,7 +136,7 @@ export default function NouveauCabinetClient() {
         setEnvoiPhotos(false);
       }
 
-      setSucces({ slug: res.slug!, cabinetId: res.cabinetId, numeroTwilio: res.numeroTwilio, lienEspacePraticien: res.lienEspacePraticien });
+      setSucces({ slug: res.slug!, cabinetId: res.cabinetId, numeroTwilio: res.numeroTwilio, lienEspacePraticien: res.lienEspacePraticien, lienPaiement: res.lienPaiement });
       router.refresh();
     });
   }
@@ -178,6 +180,21 @@ export default function NouveauCabinetClient() {
               <p className="mt-1 text-sm text-red-600">Échec de la génération du lien — va dans la fiche du cabinet pour réessayer.</p>
             )}
           </div>
+
+          {succes.lienPaiement && (
+            <div className="rounded-lg border border-slate-200 p-3">
+              <div className="text-xs font-medium text-slate-500">Lien de paiement (à partager avec le client — carte ou virement SEPA, prélèvement automatique le 1er de chaque mois)</div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="break-all text-sm">{succes.lienPaiement}</span>
+                <button
+                  onClick={() => copier(succes.lienPaiement!, "paiement")}
+                  className="flex-shrink-0 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                >
+                  {copie === "paiement" ? "Copié !" : "Copier"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {qr && (
@@ -465,6 +482,25 @@ export default function NouveauCabinetClient() {
             </option>
           ))}
         </select>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="mb-1 font-medium text-slate-800">7. Paiement</h2>
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={activerPaiementStripe}
+            onChange={(e) => setActiverPaiementStripe(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-medium text-slate-800">Générer un lien de paiement Stripe pour ce cabinet</span>
+            <span className="block text-xs text-slate-500">
+              Décoché par défaut — laisse décoché si tu gères ce client en dehors de Stripe pour l&apos;instant.
+              Prélèvement mensuel automatique le 1er du mois si activé.
+            </span>
+          </span>
+        </label>
       </section>
 
       <button
