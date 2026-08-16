@@ -83,8 +83,20 @@ export default async function DashboardLayout({
         </aside>
 
         <main className="min-w-0 flex-1">
-          <div className="mb-4 md:hidden">
-            <MobileNav nav={NAV} />
+          <div className="mb-4 flex items-center gap-2 md:hidden">
+            <div className="flex-1">
+              <MobileNav nav={NAV} />
+            </div>
+            {!vueAdmin && (
+              <form action={logout}>
+                <button
+                  type="submit"
+                  className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500"
+                >
+                  ↩ Déconnexion
+                </button>
+              </form>
+            )}
           </div>
           {children}
         </main>
